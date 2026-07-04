@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+venv311/
+ENV/
+env/
+active/
+
+# Project-specific databases & SQLite temporary/journal files
+database.db
+database.db-shm
+database.db-wal
+*.db
+
+# Session states & configurations
+.vbcua_session.json
+
+# User Uploads and Media Directories
+uploaded_audio/
+reference_materials/
+
+# User-specific reports
+*.pdf
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.project
+.pydevproject
+
+# OS-specific
+.DS_Store
+Thumbs.db
