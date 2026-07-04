@@ -39,63 +39,89 @@ _MODERATE_THRESHOLD: int = 50
 
 def evaluate_understanding(
     similarity: float,
+    cross_similarity: float,
     filler_ratio: float,
     pause_ratio: float,
     rms_energy: float,
+    topic_match: bool = True,
 ) -> tuple[int, str, str]:
     """
-    Compute a deterministic composite understanding score from four metrics.
+    Compute a deterministic composite understanding score from five metrics.
 
     Scoring breakdown
     -----------------
-    +---------------------------+----------+----------+
-    | Criterion                 | High pts | Low pts  |
-    +===========================+==========+==========+
-    | Semantic similarity >0.7  |    50    |          |
-    | Semantic similarity >0.4  |    30    |          |
-    | Semantic similarity ≤0.4  |          |    10    |
-    +---------------------------+----------+----------+
-    | Filler ratio < 0.05       |    20    |    10    |
-    +---------------------------+----------+----------+
-    | Pause ratio < 0.25        |    15    |     5    |
-    +---------------------------+----------+----------+
-    | RMS energy > 0.01         |    15    |     5    |
-    +---------------------------+----------+----------+
-    | Max achievable score      |   100    |          |
-    +---------------------------+----------+----------+
+    +----------------------------------+----------+----------+
+    | Criterion                        | High pts | Low pts  |
+    +==================================+==========+==========+
+    | Bi-Encoder similarity >0.7       |    25    |          |
+    | Bi-Encoder similarity >0.4       |    15    |          |
+    | Bi-Encoder similarity ≤0.4       |          |     5    |
+    +----------------------------------+----------+----------+
+    | Cross-Encoder similarity >0.7    |    25    |          |
+    | Cross-Encoder similarity >0.4    |    15    |          |
+    | Cross-Encoder similarity ≤0.4    |          |     5    |
+    +----------------------------------+----------+----------+
+    | Filler ratio < 0.05              |    20    |    10    |
+    +----------------------------------+----------+----------+
+    | Pause ratio < 0.25               |    15    |     5    |
+    +----------------------------------+----------+----------+
+    | RMS energy > 0.01                |    15    |     5    |
+    +----------------------------------+----------+----------+
+    | Max achievable score             |   100    |          |
+    +----------------------------------+----------+----------+
 
     Classification tiers
     --------------------
     * **Strong Understanding**   — score ≥ 80  (hex: #2ecc71)
     * **Moderate Understanding** — score ≥ 50  (hex: #f39c12)
     * **Poor Understanding**     — score < 50  (hex: #e74c3c)
+    * **Topic Mismatch**         — topic_match is False (score = 0, hex: #e74c3c)
 
     Args:
-        similarity:   Cosine similarity score in ``[0.0, 1.0]``.
-        filler_ratio: Fraction of total words that are filler words.
-        pause_ratio:  Fraction of total audio duration that is silence.
-        rms_energy:   Mean RMS energy amplitude of the audio signal.
+        similarity:       Bi-Encoder similarity in ``[0.0, 1.0]``.
+        cross_similarity: Cross-Encoder similarity in ``[0.0, 1.0]``.
+        filler_ratio:     Fraction of total words that are filler words.
+        pause_ratio:      Fraction of total audio duration that is silence.
+        rms_energy:       Mean RMS energy amplitude of the audio signal.
+        topic_match:      Boolean indicating if the student's topic matches.
 
     Returns:
         A three-tuple ``(score, understanding_label, colour_hex)`` where:
-        * ``score``               – Integer score in ``[10, 100]``.
+        * ``score``               – Integer score in ``[0, 100]``.
         * ``understanding_label`` – Human-readable tier string.
         * ``colour_hex``          – Hex colour code for UI rendering.
     """
+    if not topic_match:
+        logger.warning("Topic Guardrail triggered Topic Mismatch — returning score 0")
+        return (0, "Topic Mismatch", "#e74c3c")
+
     score: int = 0
 
     # ------------------------------------------------------------------
-    # 1. Content Evaluation (max 50 pts)
+    # 1a. Bi-Encoder Content Evaluation (max 25 pts)
     # ------------------------------------------------------------------
     if similarity > _SIM_HIGH:
-        score += 50
-        logger.debug("Semantic similarity %.4f > %.1f  → +50 pts", similarity, _SIM_HIGH)
+        score += 25
+        logger.debug("Bi-Encoder similarity %.4f > %.1f  → +25 pts", similarity, _SIM_HIGH)
     elif similarity > _SIM_MID:
-        score += 30
-        logger.debug("Semantic similarity %.4f > %.1f  → +30 pts", similarity, _SIM_MID)
+        score += 15
+        logger.debug("Bi-Encoder similarity %.4f > %.1f  → +15 pts", similarity, _SIM_MID)
     else:
-        score += 10
-        logger.debug("Semantic similarity %.4f ≤ %.1f  → +10 pts", similarity, _SIM_MID)
+        score += 5
+        logger.debug("Bi-Encoder similarity %.4f ≤ %.1f  → +5 pts", similarity, _SIM_MID)
+
+    # ------------------------------------------------------------------
+    # 1b. Cross-Encoder Content Evaluation (max 25 pts)
+    # ------------------------------------------------------------------
+    if cross_similarity > _SIM_HIGH:
+        score += 25
+        logger.debug("Cross-Encoder similarity %.4f > %.1f  → +25 pts", cross_similarity, _SIM_HIGH)
+    elif cross_similarity > _SIM_MID:
+        score += 15
+        logger.debug("Cross-Encoder similarity %.4f > %.1f  → +15 pts", cross_similarity, _SIM_MID)
+    else:
+        score += 5
+        logger.debug("Cross-Encoder similarity %.4f ≤ %.1f  → +5 pts", cross_similarity, _SIM_MID)
 
     # ------------------------------------------------------------------
     # 2. Filler Word Penalty (max 20 pts)

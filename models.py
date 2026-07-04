@@ -23,6 +23,7 @@ from sqlalchemy import (
     create_engine,
     event,
     text,
+    Boolean,
 )
 from sqlalchemy.orm import DeclarativeBase, Session as DBSession, relationship, sessionmaker
 
@@ -197,6 +198,8 @@ class SemanticSimilarity(Base):
         Integer, ForeignKey("reference_concepts.ref_concept_id", ondelete="CASCADE"), nullable=False
     )
     similarity_score: float = Column(Float, nullable=False)
+    cross_encoder_score: float | None = Column(Float, nullable=True)
+    topic_match: bool | None = Column(Boolean, nullable=True, default=True)
     created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
@@ -204,7 +207,7 @@ class SemanticSimilarity(Base):
     reference_concept: ReferenceConcept = relationship("ReferenceConcept", back_populates="semantic_similarities")
 
     def __repr__(self) -> str:
-        return f"<SemanticSimilarity id={self.similarity_id} score={self.similarity_score:.4f}>"
+        return f"<SemanticSimilarity id={self.similarity_id} score={self.similarity_score:.4f} cross_score={self.cross_encoder_score} topic_match={self.topic_match}>"
 
 
 class AudioFeature(Base):
@@ -357,6 +360,18 @@ def init_db() -> None:
             conn.commit()
         except Exception:
             pass  # Column already exists — no action needed
+
+        try:
+            conn.execute(text("ALTER TABLE semantic_similarities ADD COLUMN cross_encoder_score FLOAT"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
+
+        try:
+            conn.execute(text("ALTER TABLE semantic_similarities ADD COLUMN topic_match BOOLEAN"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
 
     seed_db()
 

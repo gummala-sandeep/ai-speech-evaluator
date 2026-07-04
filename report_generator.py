@@ -42,6 +42,7 @@ _LEVEL_COLORS: dict[str, colors.Color] = {
     "Strong Understanding": colors.HexColor("#2ecc71"),
     "Moderate Understanding": colors.HexColor("#f39c12"),
     "Poor Understanding": colors.HexColor("#e74c3c"),
+    "Topic Mismatch": colors.HexColor("#e74c3c"),
 }
 
 
@@ -127,9 +128,9 @@ def _build_metrics_table(metrics: dict) -> Table:
     Construct a styled ReportLab Table displaying evaluation metrics.
 
     Args:
-        metrics: Dictionary with keys ``similarity_score``, ``filler_ratio``,
-                 ``pause_ratio``, ``rms_energy``, ``overall_score``, and
-                 ``understanding_level``.
+        metrics: Dictionary with keys ``similarity_score``, ``cross_encoder_score``,
+                 ``topic_match``, ``filler_ratio``, ``pause_ratio``, ``rms_energy``,
+                 ``overall_score``, and ``understanding_level``.
 
     Returns:
         A fully configured ``Table`` flowable.
@@ -160,7 +161,18 @@ def _build_metrics_table(metrics: dict) -> Table:
         alignment=TA_CENTER,
     )
 
-    similarity_pct: str = f"{float(metrics.get('similarity_score', 0.0)) * 100:.1f}%"
+    topic_match: bool = bool(metrics.get("topic_match", True))
+    topic_str: str = "MATCH" if topic_match else "MISMATCH"
+    topic_style = ParagraphStyle(
+        "TopicStyle",
+        fontSize=10,
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor("#2ecc71") if topic_match else colors.HexColor("#e74c3c"),
+        alignment=TA_CENTER,
+    )
+
+    bi_pct: str = f"{float(metrics.get('similarity_score', 0.0)) * 100:.1f}%"
+    cross_pct: str = f"{float(metrics.get('cross_encoder_score', 0.0)) * 100:.1f}%"
     filler_pct: str = f"{float(metrics.get('filler_ratio', 0.0)) * 100:.2f}%"
     pause_pct: str = f"{float(metrics.get('pause_ratio', 0.0)) * 100:.1f}%"
     rms_val: str = f"{float(metrics.get('rms_energy', 0.0)):.6f}"
@@ -173,9 +185,19 @@ def _build_metrics_table(metrics: dict) -> Table:
             Paragraph("Interpretation", header_style),
         ],
         [
-            Paragraph("Semantic Similarity", cell_style),
-            Paragraph(similarity_pct, cell_style),
-            Paragraph("Conceptual alignment with reference", cell_style),
+            Paragraph("Topic Guardrail", cell_style),
+            Paragraph(topic_str, topic_style),
+            Paragraph("Keyword-based vocabulary alignment check", cell_style),
+        ],
+        [
+            Paragraph("Semantic Match (Bi-Encoder)", cell_style),
+            Paragraph(bi_pct, cell_style),
+            Paragraph("Dense semantic concept similarity", cell_style),
+        ],
+        [
+            Paragraph("Semantic Accuracy (Cross-Encoder)", cell_style),
+            Paragraph(cross_pct, cell_style),
+            Paragraph("Deep semantic concept verification", cell_style),
         ],
         [
             Paragraph("Filler Word Ratio", cell_style),
@@ -215,8 +237,8 @@ def _build_metrics_table(metrics: dict) -> Table:
                 ("GRID", (0, 0), (-1, -1), 0.5, _BORDER_COLOR),
                 ("LINEBELOW", (0, 0), (-1, 0), 1.5, _ACCENT),
                 # Padding
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),

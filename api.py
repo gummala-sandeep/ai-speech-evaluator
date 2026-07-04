@@ -33,7 +33,11 @@ from models import (
     init_db,
 )
 from scoring_engine import evaluate_understanding
-from semantic_eval import compute_semantic_similarity
+from semantic_eval import (
+    compute_semantic_similarity,
+    compute_cross_encoder_similarity,
+    verify_topic_guardrail,
+)
 from speech_to_text import transcribe_audio
 
 # ---------------------------------------------------------------------------
@@ -260,13 +264,18 @@ def get_user_history(user_id: int) -> JSONResponse:
                 ReferenceConcept.concept_title,
                 Transcript.transcript_text,
                 AudioFeature.rms_energy,
+                AudioFeature.pause_ratio,
                 FillerWordStats.filler_ratio,
+                SemanticSimilarity.similarity_score,
+                SemanticSimilarity.cross_encoder_score,
+                SemanticSimilarity.topic_match,
             )
             .join(AudioFile, EvaluationResult.audio_id == AudioFile.audio_id)
             .join(ReferenceConcept, EvaluationResult.ref_concept_id == ReferenceConcept.ref_concept_id)
             .outerjoin(Transcript, Transcript.audio_id == AudioFile.audio_id)
             .outerjoin(AudioFeature, AudioFeature.audio_id == AudioFile.audio_id)
             .outerjoin(FillerWordStats, FillerWordStats.transcript_id == Transcript.transcript_id)
+            .outerjoin(SemanticSimilarity, SemanticSimilarity.transcript_id == Transcript.transcript_id)
             .filter(AudioFile.user_id == user_id)
             .order_by(EvaluationResult.created_at.desc())
             .all()
@@ -280,7 +289,11 @@ def get_user_history(user_id: int) -> JSONResponse:
                 "created_at": row.EvaluationResult.created_at.strftime("%Y-%m-%d %H:%M"),
                 "transcript_text": str(row.transcript_text or ""),
                 "rms_energy": float(row.rms_energy or 0.0),
+                "pause_ratio": float(row.pause_ratio or 0.0),
                 "filler_ratio": float(row.filler_ratio or 0.0),
+                "similarity_score": float(row.similarity_score) if row.similarity_score is not None else 0.0,
+                "cross_encoder_score": float(row.cross_encoder_score) if row.cross_encoder_score is not None else 0.0,
+                "topic_match": bool(row.topic_match) if row.topic_match is not None else True,
             }
             for row in rows
         ]
@@ -341,7 +354,11 @@ def get_all_results() -> JSONResponse:
                 ReferenceConcept.concept_title,
                 Transcript.transcript_text,
                 AudioFeature.rms_energy,
+                AudioFeature.pause_ratio,
                 FillerWordStats.filler_ratio,
+                SemanticSimilarity.similarity_score,
+                SemanticSimilarity.cross_encoder_score,
+                SemanticSimilarity.topic_match,
             )
             .join(AudioFile, EvaluationResult.audio_id == AudioFile.audio_id)
             .join(User, AudioFile.user_id == User.user_id)
@@ -349,6 +366,7 @@ def get_all_results() -> JSONResponse:
             .outerjoin(Transcript, Transcript.audio_id == AudioFile.audio_id)
             .outerjoin(AudioFeature, AudioFeature.audio_id == AudioFile.audio_id)
             .outerjoin(FillerWordStats, FillerWordStats.transcript_id == Transcript.transcript_id)
+            .outerjoin(SemanticSimilarity, SemanticSimilarity.transcript_id == Transcript.transcript_id)
             .order_by(EvaluationResult.created_at.desc())
             .all()
         )
@@ -363,7 +381,11 @@ def get_all_results() -> JSONResponse:
                 "created_at": row.EvaluationResult.created_at.strftime("%Y-%m-%d %H:%M"),
                 "transcript_text": str(row.transcript_text or ""),
                 "rms_energy": float(row.rms_energy or 0.0),
+                "pause_ratio": float(row.pause_ratio or 0.0),
                 "filler_ratio": float(row.filler_ratio or 0.0),
+                "similarity_score": float(row.similarity_score) if row.similarity_score is not None else 0.0,
+                "cross_encoder_score": float(row.cross_encoder_score) if row.cross_encoder_score is not None else 0.0,
+                "topic_match": bool(row.topic_match) if row.topic_match is not None else True,
             }
             for row in rows
         ]
@@ -442,6 +464,9 @@ async def evaluate(
 
     logger.info("Transcript word count: %d", len(transcript_text.split()))
 
+    # ── Topic Guardrail Check ──────────────────────────────────────────
+    topic_match, overlap_count, topic_threshold = verify_topic_guardrail(transcript_text, reference_text)
+
     # ── Step 5: Signal features ──────────────────────────────────────────
     try:
         signal_features: dict[str, float] = extract_signal_features(file_path)
@@ -460,19 +485,120 @@ async def evaluate(
     total_words = filler_stats["total_words"]
     filler_ratio = filler_stats["filler_ratio"]
 
-    # ── Step 7: Semantic similarity ──────────────────────────────────────
+    if not topic_match:
+        # Topic Guardrail Mismatch - skip heavy semantic models
+        similarity_score = 0.0
+        cross_encoder_score = 0.0
+        overall_score, understanding_level, colour_hex = evaluate_understanding(
+            similarity=0.0,
+            cross_similarity=0.0,
+            filler_ratio=filler_ratio,
+            pause_ratio=pause_ratio,
+            rms_energy=rms_energy,
+            topic_match=False
+        )
+
+        with get_db() as db:
+            af_record: AudioFile | None = db.query(AudioFile).filter(AudioFile.audio_id == audio_id).first()
+            if af_record is not None:
+                af_record.duration_sec = duration_sec
+                af_record.status = "completed"
+
+            db_transcript = Transcript(
+                audio_id=audio_id,
+                transcript_text=transcript_text,
+                created_at=datetime.utcnow(),
+            )
+            db.add(db_transcript)
+            db.flush()
+            transcript_id: int = int(db_transcript.transcript_id)
+
+            db.add(FillerWordStats(
+                transcript_id=transcript_id,
+                filler_word_count=filler_word_count,
+                total_words=total_words,
+                filler_ratio=filler_ratio,
+                created_at=datetime.utcnow(),
+            ))
+            db.add(AudioFeature(
+                audio_id=audio_id,
+                pause_ratio=pause_ratio,
+                rms_energy=rms_energy,
+                zero_crossing_rate=zero_crossing_rate,
+                duration_sec=duration_sec,
+                created_at=datetime.utcnow(),
+            ))
+            db.add(SemanticSimilarity(
+                transcript_id=transcript_id,
+                ref_concept_id=ref_concept_id,
+                similarity_score=similarity_score,
+                cross_encoder_score=cross_encoder_score,
+                topic_match=False,
+                created_at=datetime.utcnow(),
+            ))
+            notes = f"Topic Guardrail Mismatched: Core vocabulary overlap count {overlap_count} < {topic_threshold}"
+            db.add(EvaluationResult(
+                audio_id=audio_id,
+                ref_concept_id=ref_concept_id,
+                overall_score=float(overall_score),
+                understanding_level=understanding_level,
+                created_at=datetime.utcnow(),
+                notes=notes,
+            ))
+            db.commit()
+
+        logger.info("Evaluation done (Topic Mismatch) — audio_id=%d score=%d level=%r", audio_id, overall_score, understanding_level)
+
+        return JSONResponse(content={
+            "status": "Topic Mismatch",
+            "audio_id": audio_id,
+            "transcript_id": transcript_id,
+            "concept": {"ref_concept_id": ref_concept_id, "concept_title": concept_title, "concept_text": reference_text, "reference_pdf_path": reference_pdf_path},
+            "transcript": transcript_text,
+            "signal_features": {
+                "duration_sec": round(duration_sec, 4),
+                "rms_energy": round(rms_energy, 8),
+                "zero_crossing_rate": round(zero_crossing_rate, 8),
+                "pause_ratio": round(pause_ratio, 6),
+            },
+            "filler_stats": {
+                "filler_word_count": filler_word_count,
+                "total_words": total_words,
+                "filler_ratio": round(filler_ratio, 6),
+                "filler_breakdown": filler_stats.get("filler_breakdown", {}),
+            },
+            "semantic_similarity": round(similarity_score, 6),
+            "cross_encoder_score": round(cross_encoder_score, 6),
+            "topic_match": False,
+            "evaluation": {
+                "overall_score": overall_score,
+                "understanding_level": understanding_level,
+                "colour_hex": colour_hex,
+            },
+        })
+
+    # ── Step 7: Semantic similarity (Bi-Encoder) ─────────────────────────
     try:
         similarity_score: float = compute_semantic_similarity(transcript_text, reference_text)
     except Exception as exc:
         _mark_audio_failed(audio_id, str(exc))
         raise HTTPException(status_code=500, detail=f"Semantic evaluation failed: {exc}")
 
+    # ── Step 7b: Cross-Encoder similarity ─────────────────────────────────
+    try:
+        cross_encoder_score: float = compute_cross_encoder_similarity(transcript_text, reference_text)
+    except Exception as exc:
+        _mark_audio_failed(audio_id, str(exc))
+        raise HTTPException(status_code=500, detail=f"Cross-Encoder similarity evaluation failed: {exc}")
+
     # ── Step 8: Scoring ──────────────────────────────────────────────────
     overall_score, understanding_level, colour_hex = evaluate_understanding(
         similarity=similarity_score,
+        cross_similarity=cross_encoder_score,
         filler_ratio=filler_ratio,
         pause_ratio=pause_ratio,
         rms_energy=rms_energy,
+        topic_match=True,
     )
 
     # ── Step 9: Persist all artefacts ────────────────────────────────────
@@ -510,6 +636,8 @@ async def evaluate(
             transcript_id=transcript_id,
             ref_concept_id=ref_concept_id,
             similarity_score=similarity_score,
+            cross_encoder_score=cross_encoder_score,
+            topic_match=True,
             created_at=datetime.utcnow(),
         ))
         notes = (
@@ -549,6 +677,8 @@ async def evaluate(
             "filler_breakdown": filler_stats.get("filler_breakdown", {}),
         },
         "semantic_similarity": round(similarity_score, 6),
+        "cross_encoder_score": round(cross_encoder_score, 6),
+        "topic_match": True,
         "evaluation": {
             "overall_score": overall_score,
             "understanding_level": understanding_level,

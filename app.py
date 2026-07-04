@@ -561,9 +561,12 @@ def page_practice():
                     res = call_evaluate(st.session_state["audio_bytes"],
                         st.session_state["audio_filename"] or "rec.wav",
                         sel["ref_concept_id"], st.session_state.get("user_id") or 0)
-                if res and res.get("status") == "success":
+                if res and res.get("status") in ("success", "Topic Mismatch"):
                     st.session_state.update({"result": res, "last_concept_id": sel["ref_concept_id"], "pdf_bytes": None})
-                    st.success("✅ Analysis complete!")
+                    if res.get("status") == "Topic Mismatch":
+                        st.warning("⚠️ Topic Mismatch! The explanation does not match the selected concept.")
+                    else:
+                        st.success("✅ Analysis complete!")
                 elif res:
                     st.error(f"Unexpected: {res}")
             else:
@@ -580,17 +583,38 @@ def page_practice():
         else:
             ev = res.get("evaluation", {}); sig = res.get("signal_features", {})
             fil = res.get("filler_stats", {}); transcript = res.get("transcript", "")
-            similarity = float(res.get("semantic_similarity", 0.0))
+            
+            topic_match_val = res.get("topic_match", True)
+            bi_similarity = float(res.get("semantic_similarity", 0.0))
+            cross_similarity = float(res.get("cross_encoder_score", 0.0))
+            semantic_accuracy = (0.5 * bi_similarity + 0.5 * cross_similarity) * 100 if topic_match_val else 0.0
+            
+            filler_ratio_val = float(fil.get("filler_ratio", 0.0))
+            pause_ratio_val = float(sig.get("pause_ratio", 0.0))
+            filler_points = 20 if filler_ratio_val < 0.05 else 10
+            pause_points = 15 if pause_ratio_val < 0.25 else 5
+            delivery_fluency = ((filler_points + pause_points) / 35.0) * 100
+
             score = int(ev.get("overall_score", 0))
             level = ev.get("understanding_level", "N/A")
             colour = ev.get("colour_hex", "#94A3B8")
             st.markdown(score_html(score, level, colour), unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            c1.metric("🧠 Semantic Match", f"{similarity*100:.1f}%")
-            c2.metric("💬 Filler Ratio", f"{float(fil.get('filler_ratio',0))*100:.2f}%")
-            c3, c4 = st.columns(2)
-            c3.metric("📢 RMS Energy", f"{float(sig.get('rms_energy',0)):.5f}")
-            c4.metric("⏸️ Pause Ratio", f"{float(sig.get('pause_ratio',0))*100:.1f}%")
+            
+            # Primary Granular Metrics
+            g1, g2, g3 = st.columns(3)
+            g1.metric("🎯 Topic Guardrail", "MATCH" if topic_match_val else "MISMATCH")
+            g2.metric("🧠 Semantic Accuracy", f"{semantic_accuracy:.1f}%")
+            g3.metric("🗣️ Delivery Fluency", f"{delivery_fluency:.1f}%")
+            
+            st.markdown("<h4 style='color:#A78BFA;font-size:0.95rem;margin-top:1rem;margin-bottom:0.5rem;'>Detailed Indicators</h4>", unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Bi-Encoder", f"{bi_similarity*100:.1f}%")
+            c2.metric("Cross-Encoder", f"{cross_similarity*100:.1f}%")
+            c3.metric("Filler Ratio", f"{filler_ratio_val*100:.2f}%")
+            c4.metric("Pause Ratio", f"{pause_ratio_val*100:.1f}%")
+            
+            st.markdown(f"<p style='color:#94A3B8;font-size:0.8rem;margin-top:0.25rem;'>🎙️ Vocal Amplitude (RMS Energy): <strong style='color:#F1F5F9;'>{float(sig.get('rms_energy',0.0)):.5f}</strong></p>", unsafe_allow_html=True)
+            
             st.markdown(card("Transcribed Explanation",
                 f"<p style='color:#F1F5F9;font-size:.9rem;line-height:1.7;margin:0;'>{transcript or '(No speech detected)'}</p>",
                 "#D97706"), unsafe_allow_html=True)
@@ -614,8 +638,12 @@ def page_practice():
                 wf = st.session_state.get("waveform_png")
                 try:
                     pdf = generate_pdf_report(
-                        metrics={"similarity_score": similarity, "filler_ratio": float(fil.get("filler_ratio",0)),
-                            "pause_ratio": float(sig.get("pause_ratio",0)), "rms_energy": float(sig.get("rms_energy",0)),
+                        metrics={"similarity_score": bi_similarity,
+                            "cross_encoder_score": cross_similarity,
+                            "topic_match": topic_match_val,
+                            "filler_ratio": filler_ratio_val,
+                            "pause_ratio": pause_ratio_val,
+                            "rms_energy": float(sig.get("rms_energy",0)),
                             "overall_score": score, "understanding_level": level},
                         transcript=transcript,
                         reference_text=res.get("concept",{}).get("concept_text",""),
@@ -632,6 +660,7 @@ _LEVEL_COLOUR = {
     "Strong Understanding": "#2ecc71",
     "Moderate Understanding": "#f39c12",
     "Poor Understanding": "#e74c3c",
+    "Topic Mismatch": "#e74c3c",
 }
 
 def _result_expander(row: dict, prefix: str = "") -> None:
@@ -652,6 +681,19 @@ def _result_expander(row: dict, prefix: str = "") -> None:
     result_id   = int(row.get("result_id", 0))
     colour      = _LEVEL_COLOUR.get(level, "#94A3B8")
 
+    topic_match_val = row.get("topic_match", True)
+    bi_similarity   = float(row.get("similarity_score", 0.0))
+    cross_similarity = float(row.get("cross_encoder_score", 0.0))
+    pause_ratio_val = float(row.get("pause_ratio", 0.0))
+    
+    # Semantic Accuracy (average of bi-encoder and cross-encoder)
+    semantic_accuracy = (0.5 * bi_similarity + 0.5 * cross_similarity) * 100 if topic_match_val else 0.0
+    
+    # Delivery Fluency calculation
+    filler_points = 20 if filler < 0.05 else 10
+    pause_points = 15 if pause_ratio_val < 0.25 else 5
+    delivery_fluency = ((filler_points + pause_points) / 35.0) * 100
+
     label = f"{ts}  │  {concept}  │  Score: {score}/100  │  {level}"
     if prefix:
         label = f"{prefix}  {label}"
@@ -670,12 +712,19 @@ def _result_expander(row: dict, prefix: str = "") -> None:
         )
 
         # ── Signal metric tiles ──────────────────────────────────────────
-        m1, m2, m3 = st.columns(3)
-        m1.metric("🏆 Understanding", level.split()[0])
-        m2.metric("📢 RMS Energy", f"{rms:.5f}")
-        m3.metric("💬 Filler Ratio", f"{filler * 100:.2f}%")
+        g1, g2, g3 = st.columns(3)
+        g1.metric("🎯 Topic Guardrail", "MATCH" if topic_match_val else "MISMATCH")
+        g2.metric("🧠 Semantic Accuracy", f"{semantic_accuracy:.1f}%")
+        g3.metric("🗣️ Delivery Fluency", f"{delivery_fluency:.1f}%")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color:#A78BFA;font-size:0.85rem;margin-top:0.5rem;margin-bottom:0.25rem;'>Detailed Indicators</h4>", unsafe_allow_html=True)
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Bi-Encoder", f"{bi_similarity * 100:.1f}%")
+        m2.metric("Cross-Encoder", f"{cross_similarity * 100:.1f}%")
+        m3.metric("Filler Ratio", f"{filler * 100:.2f}%")
+        m4.metric("Pause Ratio", f"{pause_ratio_val * 100:.1f}%")
+
+        st.markdown(f"<p style='color:#94A3B8;font-size:0.8rem;margin-top:0.25rem;margin-bottom:1rem;'>🎙️ Vocal Amplitude (RMS Energy): <strong style='color:#F1F5F9;'>{rms:.5f}</strong></p>", unsafe_allow_html=True)
 
         # ── Transcript ───────────────────────────────────────────────────
         st.markdown(
@@ -703,9 +752,11 @@ def _result_expander(row: dict, prefix: str = "") -> None:
                 try:
                     pdf_buf = generate_pdf_report(
                         metrics={
-                            "similarity_score": score / 100.0,
+                            "similarity_score": bi_similarity,
+                            "cross_encoder_score": cross_similarity,
+                            "topic_match": topic_match_val,
                             "filler_ratio": filler,
-                            "pause_ratio": 0.0,
+                            "pause_ratio": pause_ratio_val,
                             "rms_energy": rms,
                             "overall_score": score,
                             "understanding_level": level,
