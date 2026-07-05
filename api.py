@@ -31,6 +31,7 @@ from models import (
     User,
     get_db,
     init_db,
+    _hash_password,
 )
 from scoring_engine import evaluate_understanding
 from semantic_eval import (
@@ -74,9 +75,6 @@ class ConceptCreateRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Security
 # ---------------------------------------------------------------------------
-
-def _hash_password(raw: str) -> str:
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 # ---------------------------------------------------------------------------

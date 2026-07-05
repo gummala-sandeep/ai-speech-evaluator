@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 def start_backend():
     cmd = [sys.executable, "-m", "uvicorn", "api:app", "--host", "127.0.0.1", "--port", "8000"]
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        env = os.environ.copy()
+        if hasattr(st, "secrets") and "DATABASE_URL" in st.secrets:
+            env["DATABASE_URL"] = st.secrets["DATABASE_URL"]
+        proc = subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(5)
         return proc
     except Exception as e:

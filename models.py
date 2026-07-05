@@ -393,6 +393,11 @@ def init_db() -> None:
     seed_db()
 
 
+def _hash_password(raw: str) -> str:
+    """Hash raw password using SHA-256 (matches api.py helper)."""
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def seed_db() -> None:
     """Populates the database with initial concepts and default system user if empty."""
     db = SessionLocal()
@@ -419,7 +424,7 @@ def seed_db() -> None:
                 name="System User",
                 email="system@skillecho.local",
                 role="student",
-                password_hash=hashlib.sha256(b"system-no-login").hexdigest(),
+                password_hash=_hash_password("system-no-login"),
                 created_at=datetime.utcnow(),
             )
             db.add(default_user)
