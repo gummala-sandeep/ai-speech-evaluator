@@ -2,6 +2,7 @@
 enableXsrfProtection = false
 enableCORS = false
 maxUploadSize = 50
+fileWatcherType = "none"
 
 [client]
 # This hides the developer options (like Fork) from viewers

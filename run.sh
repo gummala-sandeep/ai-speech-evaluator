@@ -23,6 +23,18 @@ else
     exit 1
 fi
 
+# Load environment variables from .env if present
+if [ -f .env ]; then
+    echo "✓ Loading environment variables from .env"
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Strip comments and check if it's a valid key=value pair
+        clean_line=$(echo "$line" | sed 's/#.*//' | xargs)
+        if [ -n "$clean_line" ]; then
+            export "$clean_line"
+        fi
+    done < .env
+fi
+
 echo ""
 echo "======================================================"
 echo "  SkillEcho — Voice-Based Concept Understanding Analyser"

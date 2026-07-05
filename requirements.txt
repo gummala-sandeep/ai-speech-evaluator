@@ -8,6 +8,7 @@ python-multipart==0.0.9
 
 # ── Database ORM ───────────────────────────────────────────────────────────
 sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
 
 # ── ASR (Speech-to-Text) ──────────────────────────────────────────────────
 openai-whisper

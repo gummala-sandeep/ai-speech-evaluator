@@ -12,6 +12,15 @@ import os
 from datetime import datetime
 from typing import Generator
 
+# Load environment variables from .env if present
+if os.path.exists(".env"):
+    with open(".env", "r") as _env_file:
+        for _line in _env_file:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ[_k.strip()] = _v.strip()
+
 from sqlalchemy import (
     Column,
     DateTime,
@@ -31,21 +40,28 @@ from sqlalchemy.orm import DeclarativeBase, Session as DBSession, relationship, 
 # Engine & session factory
 # ---------------------------------------------------------------------------
 
-DATABASE_URL: str = "sqlite:///./database.db"
+DATABASE_URL: str = os.environ.get("DATABASE_URL", "sqlite:///database.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args=connect_args,
     echo=False,
 )
 
 # Enable WAL mode for better concurrent read performance on SQLite and enforce FK constraints
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL;")
-    cursor.execute("PRAGMA foreign_keys=ON;")
-    cursor.close()
+    if engine.dialect.name == "sqlite":
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA foreign_keys=ON;")
+        cursor.close()
 
 
 SessionLocal: sessionmaker[DBSession] = sessionmaker(

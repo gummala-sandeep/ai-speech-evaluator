@@ -846,8 +846,8 @@ def page_admin():
     st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>➕ Add New Concept</h3>", unsafe_allow_html=True)
     
     with st.form("add_concept_form"):
-        c_title = st.text_input("Concept Title", key="admin_concept_title", placeholder="e.g. Transformer Architecture")
-        c_text  = st.text_area("Concept Definition", key="admin_concept_text", placeholder="Write the reference explanation here…", height=130)
+        c_title = st.text_input("Concept Title", value=st.session_state["admin_concept_title"], placeholder="e.g. Transformer Architecture")
+        c_text  = st.text_area("Concept Definition", value=st.session_state["admin_concept_text"], placeholder="Write the reference explanation here…", height=130)
         c_pdf = st.file_uploader("Upload Reference PDF (Optional)", type=["pdf"])
         sub = st.form_submit_button("Add Concept →", use_container_width=True)
         
