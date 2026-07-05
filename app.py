@@ -30,35 +30,40 @@ start_backend()
 
 API = "http://127.0.0.1:8000"
 
-# ── Session persistence (survives browser reloads) ────────────────────────────
-_SESSION_FILE = os.path.join(os.path.dirname(__file__), ".skillecho_session.json")
+# In-memory sessions cache to prevent multi-device / multi-user session collision on disk
+if "_ACTIVE_SESSIONS" not in globals():
+    globals()["_ACTIVE_SESSIONS"] = {}
+
+_ACTIVE_SESSIONS = globals()["_ACTIVE_SESSIONS"]
+
+import uuid
 
 def _save_session(user_id: int, name: str, role: str) -> None:
-    """Write session credentials to a local JSON file."""
+    """Save session to in-memory store and set query parameter to prevent multi-user collisions on disk."""
     try:
-        with open(_SESSION_FILE, "w") as f:
-            json.dump({"user_id": user_id, "name": name, "role": role}, f)
+        session_id = str(uuid.uuid4())
+        _ACTIVE_SESSIONS[session_id] = {"user_id": user_id, "name": name, "role": role}
+        st.query_params["session"] = session_id
     except Exception as e:
         logger.warning("Could not save session: %s", e)
 
 def _load_session() -> dict | None:
-    """Read session from file; return None if missing or corrupt."""
+    """Load session from query parameter and in-memory store."""
     try:
-        if os.path.exists(_SESSION_FILE):
-            with open(_SESSION_FILE) as f:
-                data = json.load(f)
-            # Basic validation
-            if all(k in data for k in ("user_id", "name", "role")):
-                return data
+        session_id = st.query_params.get("session")
+        if session_id and session_id in _ACTIVE_SESSIONS:
+            return _ACTIVE_SESSIONS[session_id]
     except Exception as e:
         logger.warning("Could not load session: %s", e)
     return None
 
 def _clear_session() -> None:
-    """Delete the session file on logout."""
+    """Delete session from query parameter and in-memory store on logout."""
     try:
-        if os.path.exists(_SESSION_FILE):
-            os.remove(_SESSION_FILE)
+        session_id = st.query_params.get("session")
+        if session_id:
+            _ACTIVE_SESSIONS.pop(session_id, None)
+        st.query_params.clear()
     except Exception as e:
         logger.warning("Could not clear session: %s", e)
 
