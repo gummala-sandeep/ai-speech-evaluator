@@ -2,3 +2,7 @@
 enableXsrfProtection = false
 enableCORS = false
 maxUploadSize = 50
+
+[client]
+# This hides the developer options (like Fork) from viewers
+toolbarMode = "minimal"
