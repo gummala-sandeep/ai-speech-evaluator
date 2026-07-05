@@ -462,6 +462,9 @@ async def evaluate(
         _mark_audio_failed(audio_id, str(exc))
         raise HTTPException(status_code=500, detail=f"Transcription failed: {exc}")
 
+    import gc
+    gc.collect()
+
     logger.info("Transcript word count: %d", len(transcript_text.split()))
 
     # ── Topic Guardrail Check ──────────────────────────────────────────
@@ -473,6 +476,9 @@ async def evaluate(
     except Exception as exc:
         _mark_audio_failed(audio_id, str(exc))
         raise HTTPException(status_code=500, detail=f"Signal feature extraction failed: {exc}")
+
+    import gc
+    gc.collect()
 
     duration_sec = signal_features["duration_sec"]
     rms_energy = signal_features["rms_energy"]

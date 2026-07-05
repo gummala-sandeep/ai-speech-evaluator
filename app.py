@@ -1,13 +1,34 @@
 """app.py — VBCUA Multi-Page Streamlit Application v2.0"""
 from __future__ import annotations
 import io, json, logging, os, base64
+import subprocess
+import sys
+import time
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np, requests, streamlit as st
+
+st.set_page_config(page_title="VBCUA Platform", page_icon="🎙️", layout="wide", initial_sidebar_state="expanded")
+
 from report_generator import generate_pdf_report
 
 logger = logging.getLogger(__name__)
-API = "http://localhost:8000"
+
+@st.cache_resource
+def start_backend():
+    cmd = [sys.executable, "-m", "uvicorn", "api:app", "--host", "127.0.0.1", "--port", "8000"]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(5)
+        return proc
+    except Exception as e:
+        logger.exception("Failed to start FastAPI backend: %s", e)
+        return None
+
+# Trigger FastAPI backend start
+start_backend()
+
+API = "http://127.0.0.1:8000"
 
 # ── Session persistence (survives browser reloads) ────────────────────────────
 _SESSION_FILE = os.path.join(os.path.dirname(__file__), ".vbcua_session.json")
@@ -40,8 +61,6 @@ def _clear_session() -> None:
             os.remove(_SESSION_FILE)
     except Exception as e:
         logger.warning("Could not clear session: %s", e)
-
-st.set_page_config(page_title="VBCUA Platform", page_icon="🎙️", layout="wide", initial_sidebar_state="expanded")
 
 # Injecting Custom CSS to enforce the "Premium Obsidian" dark theme
 st.markdown("""<style>

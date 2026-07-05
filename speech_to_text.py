@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _whisper_model: Any | None = None
-_WHISPER_MODEL_SIZE: str = "base"
+_WHISPER_MODEL_SIZE: str = "tiny"
 
 
 def _load_whisper_model() -> Any:
