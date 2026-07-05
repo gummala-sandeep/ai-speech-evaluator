@@ -1,5 +1,5 @@
 """
-semantic_eval.py — NLP Semantic Similarity Engine for VBCUA
+semantic_eval.py — NLP Semantic Similarity Engine for SkillEcho
 Uses Sentence-Transformers to embed student and reference texts
 and computes their cosine similarity on a [0.0, 1.0] scale.
 """

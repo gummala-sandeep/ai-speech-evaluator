@@ -1,5 +1,5 @@
 """
-scoring_engine.py — Rule-Based Evaluation Matrix for VBCUA
+scoring_engine.py — Rule-Based Evaluation Matrix for SkillEcho
 Implements a deterministic, weighted grading function that combines
 semantic alignment, delivery fluency, and audio signal quality into
 a single interpretable score and understanding tier.

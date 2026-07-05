@@ -1,5 +1,5 @@
 """
-speech_to_text.py — OpenAI Whisper Transcription Engine for VBCUA
+speech_to_text.py — OpenAI Whisper Transcription Engine for SkillEcho
 Provides a cached, fault-tolerant interface to the Whisper ASR model.
 """
 

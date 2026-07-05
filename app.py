@@ -1,4 +1,4 @@
-"""app.py — VBCUA Multi-Page Streamlit Application v2.0"""
+"""app.py — SkillEcho Multi-Page Streamlit Application v2.0"""
 from __future__ import annotations
 import io, json, logging, os, base64
 import subprocess
@@ -8,7 +8,7 @@ import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np, requests, streamlit as st
 
-st.set_page_config(page_title="VBCUA Platform", page_icon="🎙️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SkillEcho Platform", page_icon="🎙️", layout="wide", initial_sidebar_state="expanded")
 
 from report_generator import generate_pdf_report
 
@@ -31,7 +31,7 @@ start_backend()
 API = "http://127.0.0.1:8000"
 
 # ── Session persistence (survives browser reloads) ────────────────────────────
-_SESSION_FILE = os.path.join(os.path.dirname(__file__), ".vbcua_session.json")
+_SESSION_FILE = os.path.join(os.path.dirname(__file__), ".skillecho_session.json")
 
 def _save_session(user_id: int, name: str, role: str) -> None:
     """Write session credentials to a local JSON file."""
@@ -423,8 +423,8 @@ def logout():
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def sidebar():
     with st.sidebar:
-        st.markdown("<h2 style='color:#8B5CF6;font-size:1.3rem;margin:0;'>🎙️ VBCUA</h2>"
-                    "<p style='color:#94A3B8;font-size:.78rem;margin:0 0 1rem;'>Voice Concept Analyser</p>",
+        st.markdown("<h2 style='color:#8B5CF6;font-size:1.5rem;margin:0;font-weight:800;letter-spacing:0.5px;'>🎙️ SkillEcho</h2>"
+                    "<p style='color:#A78BFA;font-size:.75rem;margin:4px 0 1.2rem;font-style:italic;line-height:1.3;'>Validating vocal comprehension, echoing conceptual mastery.</p>",
                     unsafe_allow_html=True)
         st.markdown("---")
         if not st.session_state["logged_in"]:
@@ -451,7 +451,7 @@ def sidebar():
 # ── Page 1: Login ─────────────────────────────────────────────────────────────
 def page_login():
     st.markdown("<h1 style='color:#F1F5F9;font-size:2rem;font-weight:800;text-align:center;'>🔑 Welcome Back</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#94A3B8;text-align:center;margin-bottom:2rem;'>Sign in to your VBCUA account</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#94A3B8;text-align:center;margin-bottom:2rem;'>Sign in to your SkillEcho account</p>", unsafe_allow_html=True)
     _, col, _ = st.columns([1, 2, 1])
     with col:
         with st.form("login_form"):
@@ -475,7 +475,7 @@ def page_login():
 # ── Page 2: Register ──────────────────────────────────────────────────────────
 def page_register():
     st.markdown("<h1 style='color:#F1F5F9;font-size:2rem;font-weight:800;text-align:center;'>📝 Create Account</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#94A3B8;text-align:center;margin-bottom:2rem;'>Join VBCUA to start practising</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#94A3B8;text-align:center;margin-bottom:2rem;'>Join SkillEcho to start practising</p>", unsafe_allow_html=True)
     _, col, _ = st.columns([1, 2, 1])
     with col:
         with st.form("reg_form"):
@@ -672,7 +672,7 @@ def page_practice():
                     st.error(f"PDF error: {e}")
             if st.session_state["pdf_bytes"]:
                 st.download_button("📄 Download Evaluation Report (PDF)",
-                    data=st.session_state["pdf_bytes"], file_name="vbcua_report.pdf", mime="application/pdf")
+                    data=st.session_state["pdf_bytes"], file_name="skillecho_report.pdf", mime="application/pdf")
 
 # ── Shared expander helper (used by both Dashboard and Admin) ─────────────────
 _LEVEL_COLOUR = {
@@ -793,7 +793,7 @@ def _result_expander(row: dict, prefix: str = "") -> None:
                 st.download_button(
                     "⬇️ Download Report",
                     data=st.session_state[pdf_key],
-                    file_name=f"vbcua_report_{result_id}.pdf",
+                    file_name=f"skillecho_report_{result_id}.pdf",
                     mime="application/pdf",
                     key=f"dl_{result_id}",
                 )
@@ -914,7 +914,7 @@ def main():
 
     st.markdown("---")
     st.markdown("<p style='text-align:center;color:#94A3B8;font-size:.75rem;'>"
-                "VBCUA v2.0 · Whisper · MiniLM · librosa · FastAPI · Streamlit</p>",
+                "SkillEcho v2.0 · Whisper · MiniLM · librosa · FastAPI · Streamlit</p>",
                 unsafe_allow_html=True)
 
 if __name__ == "__main__":

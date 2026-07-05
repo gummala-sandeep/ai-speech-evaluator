@@ -25,7 +25,7 @@ fi
 
 echo ""
 echo "======================================================"
-echo "  VBCUA — Voice-Based Concept Understanding Analyser"
+echo "  SkillEcho — Voice-Based Concept Understanding Analyser"
 echo "======================================================"
 echo ""
 

@@ -1,5 +1,5 @@
 """
-api.py — FastAPI Coordination Layer for VBCUA v2.0
+api.py — FastAPI Coordination Layer for SkillEcho v2.0
 Multi-role platform: Auth, Student evaluations, Admin management,
 and the existing AI inference pipeline (Whisper + Sentence-Transformers).
 """
@@ -84,7 +84,7 @@ def _hash_password(raw: str) -> str:
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="VBCUA — Voice-Based Concept Understanding Analyser",
+    title="SkillEcho — Voice-Based Concept Understanding Analyser",
     description="Multi-role platform: Auth + AI voice evaluation + Admin management.",
     version="2.0.0",
     docs_url="/docs",
@@ -109,11 +109,11 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ---------------------------------------------------------------------------
 
 def _get_or_create_default_user(db) -> User:
-    user: User | None = db.query(User).filter(User.email == "system@vbcua.local").first()
+    user: User | None = db.query(User).filter(User.email == "system@skillecho.local").first()
     if user is None:
         user = User(
             name="System User",
-            email="system@vbcua.local",
+            email="system@skillecho.local",
             role="student",
             password_hash=_hash_password("system-no-login"),
             created_at=datetime.utcnow(),
@@ -141,7 +141,7 @@ def _mark_audio_failed(audio_id: int, reason: str) -> None:
 
 @app.get("/health", tags=["Utility"])
 def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "VBCUA API", "version": "2.0.0"}
+    return {"status": "ok", "service": "SkillEcho API", "version": "2.0.0"}
 
 
 # ===========================================================================

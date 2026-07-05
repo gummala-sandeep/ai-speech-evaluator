@@ -1,5 +1,5 @@
 """
-audio_utils.py — Digital Signal Processing & Feature Extraction for VBCUA
+audio_utils.py — Digital Signal Processing & Feature Extraction for SkillEcho
 Provides waveform-level analytics (energy, silence, zero crossings)
 and linguistic filler-word statistics derived from the transcript.
 """

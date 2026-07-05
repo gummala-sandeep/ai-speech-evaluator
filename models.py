@@ -1,5 +1,5 @@
 """
-models.py — SQLAlchemy Database Architecture for VBCUA
+models.py — SQLAlchemy Database Architecture for SkillEcho
 Defines all ORM models (User, AudioFile, Transcript, FillerWordStats, SemanticSimilarity,
 AudioFeature, EvaluationResult, ReferenceConcept, Session, Report),
 the database engine, session factory, dependency-injection helper, and initial seed data.
