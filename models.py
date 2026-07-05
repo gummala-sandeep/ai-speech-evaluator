@@ -8,6 +8,7 @@ the database engine, session factory, dependency-injection helper, and initial s
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import os
 from datetime import datetime
 from typing import Generator
@@ -393,13 +394,15 @@ def init_db() -> None:
 
 
 def seed_db() -> None:
-    """Populates the reference_concepts table with initial concepts if empty."""
-    with SessionLocal() as db:
-        existing_count: int = db.execute(
+    """Populates the database with initial concepts and default system user if empty."""
+    db = SessionLocal()
+    try:
+        # Check if reference_concepts is empty and seed if necessary
+        existing_concepts = db.execute(
             text("SELECT COUNT(*) FROM reference_concepts")
         ).scalar_one()
 
-        if existing_count == 0:
+        if existing_concepts == 0:
             for concept_data in INITIAL_CONCEPTS:
                 concept = ReferenceConcept(
                     concept_title=concept_data["concept_title"],
@@ -408,7 +411,25 @@ def seed_db() -> None:
                     created_at=datetime.utcnow(),
                 )
                 db.add(concept)
-            db.commit()
+        
+        # Check if users table is empty and seed default user (cloud-safe SQLAlchemy query)
+        existing_users = db.query(User).count()
+        if existing_users == 0:
+            default_user = User(
+                name="System User",
+                email="system@skillecho.local",
+                role="student",
+                password_hash=hashlib.sha256(b"system-no-login").hexdigest(),
+                created_at=datetime.utcnow(),
+            )
+            db.add(default_user)
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
