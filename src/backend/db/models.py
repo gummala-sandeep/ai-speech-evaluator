@@ -360,7 +360,7 @@ INITIAL_CONCEPTS: list[dict] = [
 def init_db() -> None:
     """Create all tables, run safe migrations, and call seeding."""
     # Ensure reference_materials/ directory exists on the server
-    os.makedirs("reference_materials", exist_ok=True)
+    os.makedirs(os.path.join(os.getcwd(), "data", "reference_materials"), exist_ok=True)
 
     Base.metadata.create_all(bind=engine)
 

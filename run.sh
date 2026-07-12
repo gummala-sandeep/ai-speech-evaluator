@@ -35,6 +35,9 @@ if [ -f .env ]; then
     done < .env
 fi
 
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+
+
 echo ""
 echo "======================================================"
 echo "  SkillEcho — Voice-Based Concept Understanding Analyser"
@@ -49,7 +52,7 @@ python -c "import fastapi, whisper, librosa, streamlit, sentence_transformers" 2
 
 # ── 2. Start FastAPI backend in background ───────────────────────────────
 echo "[2/3] Starting FastAPI backend on http://localhost:8000 …"
-uvicorn api:app --host 0.0.0.0 --port 8000 --reload &
+uvicorn src.backend.api.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 echo "      Backend PID: $BACKEND_PID"
 sleep 3   # Give the server time to initialise models & DB
@@ -66,7 +69,7 @@ echo "======================================================"
 # Forward SIGINT/SIGTERM to the backend process as well
 trap "kill $BACKEND_PID 2>/dev/null; exit 0" SIGINT SIGTERM
 
-streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+streamlit run src/frontend/app.py --server.port 8501 --server.address 0.0.0.0
 
 # Clean up backend when Streamlit exits
 kill $BACKEND_PID 2>/dev/null || true

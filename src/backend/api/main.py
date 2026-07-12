@@ -18,8 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 
-from audio_utils import calculate_filler_stats, extract_signal_features
-from models import (
+from src.backend.services.audio import calculate_filler_stats, extract_signal_features
+from src.backend.db.models import (
     AudioFeature,
     AudioFile,
     EvaluationResult,
@@ -33,13 +33,13 @@ from models import (
     init_db,
     _hash_password,
 )
-from scoring_engine import evaluate_understanding
-from semantic_eval import (
+from src.backend.services.scoring import evaluate_understanding
+from src.backend.services.nlp import (
     compute_semantic_similarity,
     compute_cross_encoder_similarity,
     verify_topic_guardrail,
 )
-from speech_to_text import transcribe_audio
+from src.backend.services.speech import transcribe_audio
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -99,7 +99,7 @@ app.add_middleware(
 
 init_db()
 
-UPLOAD_DIR: str = "uploaded_audio"
+UPLOAD_DIR: str = os.path.join(os.getcwd(), "data", "uploaded_audio")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
@@ -316,7 +316,7 @@ async def add_concept(
     if reference_pdf and reference_pdf.filename:
         # Secure filename by using uuid prefix
         safe_pdf_name = f"{uuid.uuid4().hex}_{reference_pdf.filename}"
-        pdf_dest_path = os.path.join("reference_materials", safe_pdf_name)
+        pdf_dest_path = os.path.join(os.getcwd(), "data", "reference_materials", safe_pdf_name)
         pdf_bytes = await reference_pdf.read()
         with open(pdf_dest_path, "wb") as fh:
             fh.write(pdf_bytes)
@@ -338,6 +338,82 @@ async def add_concept(
 
     logger.info("Admin added concept id=%d title=%r pdf=%s", new_id, new_title, new_pdf_path)
     return JSONResponse(status_code=201, content={"ref_concept_id": new_id, "concept_title": new_title, "reference_pdf_path": new_pdf_path})
+
+
+@app.put("/admin/concepts/{concept_id}", tags=["Admin"])
+async def update_concept(
+    concept_id: int,
+    concept_title: str = Form(...),
+    concept_text: str = Form(...),
+    reference_pdf: UploadFile | None = File(None),
+    clear_pdf: bool = Form(False)
+) -> JSONResponse:
+    """Update an existing concept and its reference PDF."""
+    if not concept_title.strip() or not concept_text.strip():
+        raise HTTPException(status_code=400, detail="concept_title and concept_text cannot be empty")
+        
+    with get_db() as db:
+        concept = db.query(ReferenceConcept).filter(ReferenceConcept.ref_concept_id == concept_id).first()
+        if not concept:
+            raise HTTPException(status_code=404, detail="Concept not found")
+            
+        concept.concept_title = concept_title.strip()
+        concept.concept_text = concept_text.strip()
+        
+        # Handle clear PDF
+        if clear_pdf:
+            if concept.reference_pdf_path and os.path.exists(concept.reference_pdf_path):
+                try:
+                    os.remove(concept.reference_pdf_path)
+                except Exception as e:
+                    logger.warning("Failed to delete old PDF file %s: %s", concept.reference_pdf_path, e)
+            concept.reference_pdf_path = None
+            
+        # Handle new PDF upload
+        if reference_pdf and reference_pdf.filename:
+            # Delete old PDF first if it exists
+            if concept.reference_pdf_path and os.path.exists(concept.reference_pdf_path):
+                try:
+                    os.remove(concept.reference_pdf_path)
+                except Exception as e:
+                    logger.warning("Failed to delete old PDF file %s: %s", concept.reference_pdf_path, e)
+            
+            safe_pdf_name = f"{uuid.uuid4().hex}_{reference_pdf.filename}"
+            pdf_dest_path = os.path.join(os.getcwd(), "data", "reference_materials", safe_pdf_name)
+            pdf_bytes = await reference_pdf.read()
+            with open(pdf_dest_path, "wb") as fh:
+                fh.write(pdf_bytes)
+            concept.reference_pdf_path = pdf_dest_path
+            
+        db.commit()
+        updated_id = int(concept.ref_concept_id)
+        updated_title = str(concept.concept_title)
+        updated_pdf_path = concept.reference_pdf_path
+        
+    logger.info("Admin updated concept id=%d title=%r pdf=%s", updated_id, updated_title, updated_pdf_path)
+    return JSONResponse(content={"ref_concept_id": updated_id, "concept_title": updated_title, "reference_pdf_path": updated_pdf_path})
+
+
+@app.delete("/admin/concepts/{concept_id}", tags=["Admin"])
+def delete_concept(concept_id: int) -> JSONResponse:
+    """Delete a reference concept and its associated files and database records."""
+    with get_db() as db:
+        concept = db.query(ReferenceConcept).filter(ReferenceConcept.ref_concept_id == concept_id).first()
+        if not concept:
+            raise HTTPException(status_code=404, detail="Concept not found")
+        
+        # If there's an attached PDF, try to delete it
+        if concept.reference_pdf_path and os.path.exists(concept.reference_pdf_path):
+            try:
+                os.remove(concept.reference_pdf_path)
+            except Exception as e:
+                logger.warning("Failed to delete PDF file %s: %s", concept.reference_pdf_path, e)
+                
+        db.delete(concept)
+        db.commit()
+    logger.info("Admin deleted concept id=%d", concept_id)
+    return JSONResponse(content={"message": "Concept deleted successfully", "ref_concept_id": concept_id})
+
 
 
 @app.get("/admin/results", tags=["Admin"])
@@ -388,6 +464,25 @@ def get_all_results() -> JSONResponse:
             for row in rows
         ]
     return JSONResponse(content={"results": payload})
+
+
+@app.get("/admin/users", tags=["Admin"])
+def get_all_users() -> JSONResponse:
+    """Return all registered users in the system."""
+    with get_db() as db:
+        users = db.query(User).order_by(User.created_at.desc()).all()
+        payload = [
+            {
+                "user_id": int(u.user_id),
+                "name": str(u.name),
+                "email": str(u.email),
+                "role": str(u.role),
+                "created_at": u.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+            for u in users
+        ]
+    return JSONResponse(content={"users": payload})
+
 
 
 # ===========================================================================

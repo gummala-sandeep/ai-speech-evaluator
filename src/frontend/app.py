@@ -10,17 +10,20 @@ import numpy as np, requests, streamlit as st
 
 st.set_page_config(page_title="SkillEcho Platform", page_icon="🎙️", layout="wide", initial_sidebar_state="expanded")
 
-from report_generator import generate_pdf_report
+from src.backend.services.reports import generate_pdf_report
 
 logger = logging.getLogger(__name__)
 
 @st.cache_resource
 def start_backend():
-    cmd = [sys.executable, "-m", "uvicorn", "api:app", "--host", "127.0.0.1", "--port", "8000"]
+    cmd = ["python", "-m", "uvicorn", "src.backend.api.main:app", "--host", "127.0.0.1", "--port", "8000"]
     try:
         env = os.environ.copy()
-        if hasattr(st, "secrets") and "DATABASE_URL" in st.secrets:
-            env["DATABASE_URL"] = st.secrets["DATABASE_URL"]
+        try:
+            if hasattr(st, "secrets") and "DATABASE_URL" in st.secrets:
+                env["DATABASE_URL"] = st.secrets["DATABASE_URL"]
+        except Exception:
+            pass
         proc = subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(5)
         return proc
@@ -83,47 +86,102 @@ html, body, [class*="css"], [data-testid="stAppViewContainer"], .stApp {
 
 .stApp {
     background-color: #09090E !important;
-    background-image: linear-gradient(135deg, #09090E 0%, #110726 100%) !important;
+    background-image: radial-gradient(circle at 50% 0%, #1c0e3a 0%, #09090e 70%) !important;
 }
 
 .block-container {
-    padding-top: 1.5rem !important;
-    padding-bottom: 2rem !important;
+    padding-top: 2rem !important;
+    padding-bottom: 3rem !important;
 }
 
 h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     color: #F1F5F9 !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+}
+
+/* Glassmorphic Forms */
+.stForm {
+    background: rgba(22, 22, 42, 0.55) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 16px !important;
+    padding: 2.2rem !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Text inputs, textareas, and selectboxes styling */
 input, textarea, [data-baseweb="input"] input, [data-baseweb="textarea"] textarea, [data-baseweb="select"] div {
-    background-color: #16162A !important;
+    background-color: rgba(22, 22, 42, 0.6) !important;
     color: #F1F5F9 !important;
     -webkit-text-fill-color: #F1F5F9 !important;
     border-radius: 8px !important;
+    font-size: 0.92rem !important;
 }
 
 [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] {
-    background-color: #16162A !important;
-    border: 1px solid #2D2D4E !important;
+    background-color: rgba(22, 22, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 8px !important;
 }
 
 input:focus, textarea:focus, [data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within {
-    border-color: #7C3AED !important;
-    background-color: #1A1A35 !important;
-    box-shadow: 0 0 0 1px #7C3AED !important;
+    border-color: #8B5CF6 !important;
+    background-color: rgba(26, 26, 53, 0.8) !important;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25) !important;
 }
 
 /* Dropdown list styling */
 div[role="listbox"] {
-    background-color: #16162A !important;
+    background-color: #101021 !important;
     color: #F1F5F9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Force Streamlit button text to be white and remove black color fallback */
+div[role="option"] {
+    color: #E2E8F0 !important;
+    transition: all 0.2s ease !important;
+}
+
+div[role="option"]:hover {
+    background-color: rgba(124, 58, 237, 0.2) !important;
+    color: #FFFFFF !important;
+}
+
+/* Tab overrides (Glass Pill Segment Control) */
+div[role="tablist"] {
+    background: rgba(22, 22, 42, 0.45) !important;
+    border-radius: 12px !important;
+    padding: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    gap: 8px !important;
+    margin-bottom: 1.5rem !important;
+}
+
+button[data-baseweb="tab"] {
+    background: transparent !important;
+    border-bottom: none !important;
+    border-radius: 8px !important;
+    padding: 8px 18px !important;
+    color: #94A3B8 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3) !important;
+}
+
+button[data-baseweb="tab"]:hover {
+    color: #FFFFFF !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Buttons styling */
 .stButton button, .stDownloadButton button, .stFormSubmitButton button, button[data-testid*="baseButton"] {
     color: #FFFFFF !important;
     -webkit-text-fill-color: #FFFFFF !important;
@@ -139,21 +197,20 @@ div[role="listbox"] {
     background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%) !important;
     border: none !important;
     border-radius: 8px !important;
-    font-weight: 600 !important;
-    padding: 0.6rem 1.2rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+    padding: 0.65rem 1.4rem !important;
     box-shadow: 0 4px 15px rgba(124, 58, 237, 0.25) !important;
-    transition: all 0.2s ease-in-out !important;
+    transition: all 0.25s ease-in-out !important;
     width: 100% !important;
 }
 
 .stButton button:hover, .stFormSubmitButton button:hover,
 .stButton button:focus, .stFormSubmitButton button:focus,
 .stButton button:active, .stFormSubmitButton button:active {
-    transform: translateY(-1px) !important;
+    transform: translateY(-1.5px) !important;
     box-shadow: 0 8px 24px rgba(124, 58, 237, 0.45) !important;
     background: linear-gradient(135deg, #8B5CF6 0%, #5B21B6 100%) !important;
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
 }
 
 /* Download buttons styling (Glowing Green/Teal) */
@@ -161,25 +218,24 @@ div[role="listbox"] {
     background: linear-gradient(135deg, #059669 0%, #0D9488 100%) !important;
     border: none !important;
     border-radius: 8px !important;
-    font-weight: 600 !important;
-    padding: 0.6rem 1.2rem !important;
+    font-weight: 700 !important;
+    padding: 0.65rem 1.4rem !important;
     box-shadow: 0 4px 15px rgba(5, 150, 105, 0.2) !important;
-    transition: all 0.2s ease-in-out !important;
+    transition: all 0.25s ease-in-out !important;
     width: 100% !important;
 }
 
 .stDownloadButton button:hover, .stDownloadButton button:focus, .stDownloadButton button:active {
-    transform: translateY(-1px) !important;
+    transform: translateY(-1.5px) !important;
     box-shadow: 0 8px 24px rgba(5, 150, 105, 0.4) !important;
     background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
 }
 
 /* Sidebar overrides */
 [data-testid="stSidebar"] {
-    background-color: #101021 !important;
-    border-right: 1px solid #2D2D4E !important;
+    background-color: #0B0B14 !important;
+    background-image: linear-gradient(180deg, #0B0B14 0%, #150F2E 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, 
@@ -188,55 +244,179 @@ div[role="listbox"] {
     color: #F1F5F9 !important;
 }
 
-/* Metric layouts */
-[data-testid="stMetric"] {
-    background-color: #16162A !important;
-    border: 1px solid #2D2D4E !important;
+[data-testid="stSidebar"] button {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
     border-radius: 8px !important;
-    padding: 1rem !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
-}
-
-[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+    padding: 0.5rem 1rem !important;
     color: #94A3B8 !important;
-    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+}
+[data-testid="stSidebar"] button:hover {
+    background: rgba(124, 58, 237, 0.12) !important;
+    color: #FFFFFF !important;
+    border-color: rgba(124, 58, 237, 0.3) !important;
 }
 
-[data-testid="stMetric"] [data-testid="stMetricValue"] {
-    color: #F1F5F9 !important;
+/* Metric layouts (SaaS Dashboard styling) */
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, rgba(22, 22, 42, 0.65) 0%, rgba(16, 16, 33, 0.3) 100%) !important;
+    backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    padding: 1.2rem !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-2px) !important;
+    border-color: rgba(124, 58, 237, 0.25) !important;
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.1) !important;
+}
+
+[data-testid="stMetric"] [data-testid="stMetricLabel"] > div {
+    color: #94A3B8 !important;
     font-weight: 700 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
 }
 
-/* Markdown typography settings */
-div[data-testid="stMarkdownContainer"] {
+[data-testid="stMetric"] [data-testid="stMetricValue"] > div {
     color: #F1F5F9 !important;
+    font-weight: 800 !important;
+    font-size: 1.6rem !important;
+    margin-top: 4px !important;
 }
 
-div[data-testid="stMarkdownContainer"] p {
-    color: #E2E8F0 !important;
-}
-
-/* Expanders */
+/* Expanders (Accordion glassmorphism) */
 .streamlit-expanderHeader {
-    background-color: #16162A !important;
-    border: 1px solid #2D2D4E !important;
-    border-radius: 8px !important;
+    background: rgba(22, 22, 42, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 10px !important;
+    padding: 12px 18px !important;
+    font-weight: 600 !important;
     color: #F1F5F9 !important;
+    transition: all 0.3s ease !important;
+}
+
+.streamlit-expanderHeader:hover {
+    background: rgba(124, 58, 237, 0.08) !important;
+    border-color: rgba(124, 58, 237, 0.25) !important;
 }
 
 .streamlit-expanderContent {
-    background-color: #101021 !important;
-    border: 1px solid #2D2D4E !important;
+    background: rgba(16, 16, 33, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
     border-top: none !important;
-    border-radius: 0 0 8px 8px !important;
-    padding: 1rem !important;
+    border-radius: 0 0 10px 10px !important;
+    padding: 1.5rem !important;
 }
 
 /* File Uploaders */
 [data-testid="stFileUploader"] {
-    background-color: #16162A !important;
-    border: 1px dashed #475569 !important;
-    border-radius: 8px !important;
+    background-color: rgba(22, 22, 42, 0.3) !important;
+    border: 1.5px dashed rgba(124, 58, 237, 0.3) !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: #8B5CF6 !important;
+    background-color: rgba(124, 58, 237, 0.05) !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background-color: transparent !important;
+}
+
+/* User Card List and Grid */
+.user-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.2rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+.user-item-card {
+    background: rgba(22, 22, 42, 0.45);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+.user-item-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 10px 25px rgba(139, 92, 246, 0.15);
+}
+.user-avatar-circle {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C3AED, #4F46E5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #FFFFFF;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+    text-transform: uppercase;
+}
+.user-avatar-circle.admin {
+    background: linear-gradient(135deg, #EF4444, #B91C1C);
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+}
+.user-detail-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.user-detail-info h4 {
+    margin: 0 !important;
+    font-size: 0.98rem !important;
+    font-weight: 700 !important;
+    color: #F1F5F9 !important;
+}
+.user-detail-info p {
+    margin: 0 !important;
+    font-size: 0.8rem !important;
+    color: #94A3B8 !important;
+}
+.user-card-badge {
+    align-self: center;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.user-card-badge.student-badge {
+    background: rgba(124, 58, 237, 0.12);
+    color: #C084FC;
+    border: 1px solid rgba(124, 58, 237, 0.25);
+}
+.user-card-badge.admin-badge {
+    background: rgba(239, 68, 68, 0.12);
+    color: #FCA5A5;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.user-card-date {
+    font-size: 0.7rem;
+    color: #64748B;
+    margin-top: 2px;
 }
 
 /* Scrollbars */
@@ -244,34 +424,144 @@ div[data-testid="stMarkdownContainer"] p {
     width: 8px;
 }
 ::-webkit-scrollbar-thumb {
-    background: #475569;
+    background: #2D2D4E;
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #64748B;
+    background: #475569;
 }
 
 hr {
-    border-color: #2D2D4E !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Concept Cards Styling */
+.concept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+}
+.concept-card {
+    background: rgba(22, 22, 42, 0.45);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.concept-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(124, 58, 237, 0.3);
+    box-shadow: 0 12px 30px rgba(124, 58, 237, 0.15);
+}
+.concept-card-title {
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    color: #FFFFFF !important;
+    margin-bottom: 8px !important;
+}
+.concept-card-body {
+    font-size: 0.88rem;
+    color: #E2E8F0;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+}
+.concept-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+.pdf-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+.pdf-badge.attached {
+    background: rgba(5, 150, 105, 0.12);
+    color: #34D399;
+    border: 1px solid rgba(5, 150, 105, 0.25);
+}
+.pdf-badge.none {
+    background: rgba(100, 116, 139, 0.12);
+    color: #94A3B8;
+    border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+/* Results (Assessment) Cards Styling */
+.results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-top: 1rem;
+}
+.result-card {
+    background: rgba(22, 22, 42, 0.45);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.result-card:hover {
+    border-color: rgba(124, 58, 237, 0.25);
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.1);
+}
+.result-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+}
+.result-card-student-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.result-card-score-badge {
+    font-size: 1.2rem;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>""", unsafe_allow_html=True)
 
 # ── UI helpers ────────────────────────────────────────────────────────────────
 def card(title, body, color="#7C3AED"):
-    return (f'<div style="background:#16162A;border:1px solid #2D2D4E;border-left:4px solid {color};'
-            f'border-radius:8px;padding:1.2rem 1.4rem;margin-bottom:1rem;box-shadow: 0 2px 8px rgba(0,0,0,0.2);">'
-            f'<p style="color:#94A3B8;font-size:.75rem;font-weight:600;letter-spacing:1px;'
-            f'text-transform:uppercase;margin:0 0 6px;">{title}</p>'
-            f'<div style="color:#F1F5F9;font-size:.92rem;line-height:1.65;">{body}</div></div>')
+    return (f'<div style="background: rgba(22, 22, 42, 0.5); backdrop-filter: blur(12px);'
+            f'border: 1px solid rgba(255, 255, 255, 0.05); border-left: 4px solid {color};'
+            f'border-radius: 12px; padding: 1.4rem; margin-bottom: 1.2rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);'
+            f'transition: all 0.3s ease;">'
+            f'<p style="color: #94A3B8; font-size: .75rem; font-weight: 700; letter-spacing: 1px;'
+            f'text-transform: uppercase; margin: 0 0 8px;">{title}</p>'
+            f'<div style="color: #F1F5F9; font-size: .95rem; line-height: 1.7;">{body}</div></div>')
 
 def score_html(score, level, colour):
-    return (f'<div style="background:linear-gradient(135deg,#16162A,#101021);border:2px solid {colour};'
-            f'border-radius:8px;padding:2rem;text-align:center;box-shadow:0 4px 20px {colour}22;margin-bottom:1rem;">'
-            f'<p style="color:#94A3B8;font-size:.78rem;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 8px;font-weight:600;">FINAL SCORE</p>'
-            f'<p style="color:{colour};font-size:4.5rem;font-weight:800;margin:0;line-height:1;">{score}</p>'
-            f'<p style="color:#94A3B8;font-size:.85rem;margin:4px 0 0;">out of 100</p>'
-            f'<hr style="border-color:#2D2D4E;margin:1rem 0;">'
-            f'<p style="color:{colour};font-size:1.15rem;font-weight:700;margin:0;">{level}</p></div>')
+    return (f'<div style="background: radial-gradient(circle at top, rgba(22, 22, 42, 0.8), rgba(10, 10, 21, 0.9));'
+            f'backdrop-filter: blur(16px); border: 2px solid {colour};'
+            f'border-radius: 16px; padding: 2.2rem 2rem; text-align: center; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 25px {colour}15; margin-bottom: 1.5rem;">'
+            f'<p style="color:#94A3B8;font-size:.8rem;letter-spacing:2px;text-transform:uppercase;margin:0 0 10px;font-weight:700;">FINAL COMPREHENSION SCORE</p>'
+            f'<p style="color:{colour};font-size:5rem;font-weight:900;margin:0;line-height:1;text-shadow: 0 0 15px {colour}33;">{score}</p>'
+            f'<p style="color:#94A3B8;font-size:.85rem;margin:6px 0 0;font-weight:500;">out of 100</p>'
+            f'<div style="height:1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent); margin:1.2rem 0;"></div>'
+            f'<p style="color:{colour};font-size:1.25rem;font-weight:800;margin:0;letter-spacing:0.5px;text-transform:uppercase;">{level}</p></div>')
 
 def format_definition_text(text: str) -> str:
     """Format definition text into styled HTML paragraphs and lists."""
@@ -352,14 +642,40 @@ def fetch_concept_pdf(concept_id: int) -> bytes | None:
         logger.warning("Could not fetch concept PDF: %s", e)
     return None
 
+def _get_error_detail(e: Exception) -> str:
+    """Extract a friendly error message from a requests exception, checking for JSON detail."""
+    if isinstance(e, requests.HTTPError) and e.response is not None:
+        try:
+            err_json = e.response.json()
+            if isinstance(err_json, dict) and "detail" in err_json:
+                detail = err_json["detail"]
+                if isinstance(detail, list):
+                    parts = []
+                    for item in detail:
+                        if isinstance(item, dict) and "msg" in item:
+                            parts.append(str(item["msg"]))
+                        else:
+                            parts.append(str(item))
+                    return ", ".join(parts)
+                return str(detail)
+        except Exception:
+            pass
+        try:
+            text = e.response.text
+            if text and len(text) < 150:
+                return text
+        except Exception:
+            pass
+    return str(e)
+
 def api_post(path, payload):
     try:
-        r = requests.post(f"{API}{path}", json=payload, timeout=15); r.raise_for_status()
+        r = requests.post(f"{API}{path}", json=payload, timeout=15)
+        r.raise_for_status()
         return r.json()
-    except requests.HTTPError as e:
-        st.error(f"❌ {e.response.json().get('detail', str(e)) if e.response else e}"); return None
     except Exception as e:
-        st.error(f"❌ {e}"); return None
+        st.error(f"❌ {_get_error_detail(e)}")
+        return None
 
 def api_post_concept(title: str, definition: str, pdf_file) -> dict | None:
     try:
@@ -375,14 +691,53 @@ def api_post_concept(title: str, definition: str, pdf_file) -> dict | None:
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        st.error(f"❌ {e}")
+        st.error(f"❌ {_get_error_detail(e)}")
+        return None
+
+def api_delete_concept(concept_id: int) -> bool:
+    try:
+        r = requests.delete(f"{API}/admin/concepts/{concept_id}", timeout=15)
+        r.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"❌ Delete failed: {_get_error_detail(e)}")
+        return False
+
+def api_update_concept(concept_id: int, title: str, definition: str, pdf_file, clear_pdf: bool) -> dict | None:
+    try:
+        files = {}
+        if pdf_file is not None:
+            files["reference_pdf"] = (pdf_file.name, pdf_file.getvalue(), "application/pdf")
+        
+        data = {
+            "concept_title": title,
+            "concept_text": definition,
+            "clear_pdf": str(clear_pdf).lower()
+        }
+        r = requests.put(f"{API}/admin/concepts/{concept_id}", data=data, files=files if files else None, timeout=30)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        st.error(f"❌ Update failed: {_get_error_detail(e)}")
+        return None
+
+def api_get_concept_pdf(concept_id: int):
+    try:
+        r = requests.get(f"{API}/concepts/{concept_id}/pdf", timeout=20)
+        if r.status_code == 200:
+            return r.content
+        return None
+    except Exception:
         return None
 
 def api_get(path):
     try:
-        r = requests.get(f"{API}{path}", timeout=15); r.raise_for_status(); return r.json()
+        r = requests.get(f"{API}{path}", timeout=15)
+        r.raise_for_status()
+        return r.json()
     except Exception as e:
-        st.error(f"❌ {e}"); return None
+        st.error(f"❌ {_get_error_detail(e)}")
+        return None
 
 def call_evaluate(audio_bytes, filename, ref_concept_id, user_id):
     try:
@@ -390,15 +745,17 @@ def call_evaluate(audio_bytes, filename, ref_concept_id, user_id):
             files={"audio_file": (filename, audio_bytes, "audio/wav")},
             data={"ref_concept_id": str(ref_concept_id), "user_id": str(user_id)},
             timeout=180)
-        r.raise_for_status(); return r.json()
+        r.raise_for_status()
+        return r.json()
     except requests.exceptions.Timeout:
-        st.error("⏱️ Timed out. Try a shorter clip."); return None
+        st.error("⏱️ Timed out. Try a shorter clip.")
+        return None
     except requests.exceptions.ConnectionError:
-        st.error("🔌 Cannot connect to backend."); return None
-    except requests.HTTPError as e:
-        st.error(f"❌ {e.response.json().get('detail', str(e)) if e.response else e}"); return None
+        st.error("🔌 Cannot connect to backend.")
+        return None
     except Exception as e:
-        st.error(f"❌ {e}"); return None
+        st.error(f"❌ {_get_error_detail(e)}")
+        return None
 
 # ── Session state ───────────────────────────────────────────────────────────────
 def init_state():
@@ -406,7 +763,8 @@ def init_state():
     for k, v in {"logged_in": False, "user_id": None, "user_name": None, "user_role": None,
                   "page": "login", "result": None, "waveform_png": None,
                   "pdf_bytes": None, "audio_bytes": None, "audio_filename": None, "last_concept_id": None,
-                  "admin_concept_title": "", "admin_concept_text": ""}.items():
+                  "admin_concept_title": "", "admin_concept_text": "", "is_adding": False,
+                  "editing_concept_id": None, "confirm_delete_id": None}.items():
         if k not in st.session_state: st.session_state[k] = v
 
     # Restore saved session from disk (survives page reloads)
@@ -692,11 +1050,8 @@ _LEVEL_COLOUR = {
 
 def _result_expander(row: dict, prefix: str = "") -> None:
     """
-    Render one evaluation record as a styled st.expander with:
-    - Colour-coded score progress bar
-    - Signal metric tiles (RMS, filler ratio)
-    - Read-only transcript text area
-    - Stateful PDF generation (no AI re-run; pure report from stored data)
+    Render one evaluation record as a styled card with student profile info
+    and an expandable diagnostics details section.
     """
     score       = int(row.get("overall_score", 0))
     level       = row.get("understanding_level", "N/A")
@@ -721,11 +1076,36 @@ def _result_expander(row: dict, prefix: str = "") -> None:
     pause_points = 15 if pause_ratio_val < 0.25 else 5
     delivery_fluency = ((filler_points + pause_points) / 35.0) * 100
 
-    label = f"{ts}  │  {concept}  │  Score: {score}/100  │  {level}"
-    if prefix:
-        label = f"{prefix}  {label}"
+    student_name = row.get("student_name") or st.session_state.get("user_name") or "Student"
+    student_email = row.get("student_email") or "student@skillecho.com"
+    initials = "".join([part[0] for part in student_name.split() if part])[:2].upper() or "?"
 
-    with st.expander(label, expanded=False):
+    def to_rgb(h):
+        h = h.lstrip('#')
+        return f"{int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)}"
+
+    # Render card markup
+    st.markdown(
+        f"<div class='result-card' style='margin-bottom: 1rem;'>"
+        f"  <div class='result-card-header'>"
+        f"    <div class='result-card-student-info'>"
+        f"      <div class='user-avatar-circle student'>{initials}</div>"
+        f"      <div>"
+        f"        <h4 style='margin:0; font-size:1.05rem; font-weight:700; color:#F1F5F9;'>{student_name}</h4>"
+        f"        <p style='margin:0; font-size:0.8rem; color:#94A3B8;'>{student_email} • {ts}</p>"
+        f"      </div>"
+        f"    </div>"
+        f"    <span class='result-card-score-badge' style='background: rgba({to_rgb(colour)}, 0.12); color:{colour}; border:1px solid rgba({to_rgb(colour)}, 0.25);'>{score}/100</span>"
+        f"  </div>"
+        f"  <div style='margin-bottom: 10px;'>"
+        f"    <p style='margin:0; font-size:0.88rem; color:#E2E8F0;'><strong>Concept Evaluated:</strong> {concept}</p>"
+        f"    <p style='margin:2px 0 0; font-size:0.85rem; color:#94A3B8;'><strong>Level:</strong> <span style='color:{colour}; font-weight:700;'>{level}</span></p>"
+        f"  </div>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    with st.expander("🔍 View Detailed Diagnostics & Report", expanded=False):
         # ── Score bar ────────────────────────────────────────────────────
         st.markdown(
             f"<div style='margin:4px 0 10px;'>"
@@ -847,53 +1227,238 @@ def page_admin():
     if st.session_state.get("user_role") != "admin":
         st.error("⛔ Access denied. Admins only."); return
     st.markdown("<h1 style='color:#F1F5F9;font-size:1.9rem;font-weight:800;'>⚙️ Admin Panel</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#94A3B8;margin-bottom:1.5rem;'>Manage the concept library and drill into any student's evaluation.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#94A3B8;margin-bottom:1.5rem;'>Manage the concept library, track student evaluations, and monitor registered users.</p>", unsafe_allow_html=True)
     st.markdown("---")
 
-    # ── Section A: Add new concept ───────────────────────────────────────────
-    st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>➕ Add New Concept</h3>", unsafe_allow_html=True)
-    
-    with st.form("add_concept_form"):
-        c_title = st.text_input("Concept Title", value=st.session_state["admin_concept_title"], placeholder="e.g. Transformer Architecture")
-        c_text  = st.text_area("Concept Definition", value=st.session_state["admin_concept_text"], placeholder="Write the reference explanation here…", height=130)
-        c_pdf = st.file_uploader("Upload Reference PDF (Optional)", type=["pdf"])
-        sub = st.form_submit_button("Add Concept →", use_container_width=True)
+    # Set up tabs for clean administration UX
+    tab_concepts, tab_history, tab_users = st.tabs([
+        "➕ Concept Management", 
+        "📊 Student Assessment History", 
+        "👥 Registered Users"
+    ])
+
+    # ── TAB 1: Concept Management ──
+    with tab_concepts:
+        st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>➕ Add New Concept</h3>", unsafe_allow_html=True)
         
-    if sub:
-        if not c_title.strip() or not c_text.strip():
-            st.error("Both title and definition are required.")
-        else:
-            res = api_post_concept(c_title.strip(), c_text.strip(), c_pdf)
-            if res:
-                st.success(f"✅ Concept '{res['concept_title']}' added (id={res['ref_concept_id']}).")
-                # Reset fields in session state
-                st.session_state["admin_concept_title"] = ""
-                st.session_state["admin_concept_text"] = ""
-                fetch_concepts.clear()
+        # We bind the inputs to keys in session state so they persist and can be easily cleared
+        c_title = st.text_input("Concept Title", key="admin_concept_title", placeholder="e.g. Transformer Architecture", disabled=st.session_state.is_adding)
+        c_text  = st.text_area("Concept Definition", key="admin_concept_text", placeholder="Write the reference explanation here…", height=130, disabled=st.session_state.is_adding)
+        c_pdf = st.file_uploader("Upload Reference PDF (Optional)", type=["pdf"], key="admin_concept_pdf", disabled=st.session_state.is_adding)
+        
+        # The submit button is restricted (disabled) during addition
+        sub = st.button("Add Concept →", disabled=st.session_state.is_adding, use_container_width=True)
+        
+        if sub:
+            if not c_title.strip() or not c_text.strip():
+                st.error("Both title and definition are required.")
+            else:
+                st.session_state.is_adding = True
                 st.rerun()
 
-    st.markdown("---")
+        # If adding, run the API call inside a loading spinner
+        if st.session_state.is_adding:
+            with st.spinner("Creating concept and extracting embeddings... Please wait."):
+                pdf_file = st.session_state.get("admin_concept_pdf")
+                res = api_post_concept(st.session_state.admin_concept_title.strip(), st.session_state.admin_concept_text.strip(), pdf_file)
+                if res:
+                    st.success(f"✅ Concept '{res['concept_title']}' added successfully (ID: {res['ref_concept_id']}).")
+                    st.session_state["admin_concept_title"] = ""
+                    st.session_state["admin_concept_text"] = ""
+                    st.session_state["admin_concept_pdf"] = None
+                    fetch_concepts.clear()
+                else:
+                    st.error("Failed to add concept. Please check backend connectivity.")
+                st.session_state.is_adding = False
+                st.rerun()
 
-    # ── Section B: All student results with drill-down ───────────────────────
-    st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>👥 All Student Results — Click to Expand</h3>", unsafe_allow_html=True)
-    if st.button("🔄 Refresh", key="admin_refresh"): st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>📋 Existing Concepts</h3>", unsafe_allow_html=True)
+        if st.button("🔄 Refresh Concepts List", key="admin_refresh_concepts"): 
+            fetch_concepts.clear()
+            st.rerun()
 
-    data = api_get("/admin/results")
-    if data is None: return
-    results = data.get("results", [])
-    if not results:
-        st.info("No evaluation results yet."); return
+        concepts = fetch_concepts()
+        if not concepts:
+            st.info("No reference concepts exist in the library yet.")
+        else:
+            for c in concepts:
+                cid = c.get("ref_concept_id")
+                ctitle = c.get("concept_title")
+                ctext = c.get("concept_text")
+                cpdf = c.get("reference_pdf_path")
+                
+                # Check if this concept is currently being edited
+                if st.session_state.editing_concept_id == cid:
+                    st.markdown(f"#### ✏️ Editing Concept #{cid}", unsafe_allow_html=True)
+                    with st.form(f"edit_concept_form_{cid}"):
+                        edit_title = st.text_input("Concept Title", value=ctitle)
+                        edit_text = st.text_area("Concept Definition", value=ctext, height=130)
+                        edit_pdf = st.file_uploader("Replace Reference PDF (Optional)", type=["pdf"], key=f"edit_pdf_{cid}")
+                        clear_existing_pdf = st.checkbox("Remove existing PDF reference", value=False)
+                        
+                        e_col1, e_col2 = st.columns(2)
+                        with e_col1:
+                            save_btn = st.form_submit_button("💾 Save Changes", use_container_width=True)
+                        with e_col2:
+                            cancel_btn = st.form_submit_button("❌ Cancel", use_container_width=True)
+                            
+                    if save_btn:
+                        if not edit_title.strip() or not edit_text.strip():
+                            st.error("Title and definition are required.")
+                        else:
+                            with st.spinner("Updating concept..."):
+                                res = api_update_concept(cid, edit_title.strip(), edit_text.strip(), edit_pdf, clear_existing_pdf)
+                                if res:
+                                    st.success("✅ Concept updated successfully!")
+                                    st.session_state.editing_concept_id = None
+                                    fetch_concepts.clear()
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to update concept.")
+                                    
+                    if cancel_btn:
+                        st.session_state.editing_concept_id = None
+                        st.rerun()
+                        
+                elif st.session_state.confirm_delete_id == cid:
+                    st.warning(f"⚠️ Are you sure you want to delete concept '{ctitle}'? This will delete all evaluation results associated with it!")
+                    del_col1, del_col2 = st.columns(2)
+                    with del_col1:
+                        if st.button("🗑️ Yes, Delete", key=f"confirm_del_btn_{cid}", use_container_width=True):
+                            with st.spinner("Deleting..."):
+                                if api_delete_concept(cid):
+                                    st.success("✅ Concept deleted successfully!")
+                                    st.session_state.confirm_delete_id = None
+                                    fetch_concepts.clear()
+                                    st.rerun()
+                    with del_col2:
+                        if st.button("❌ Cancel", key=f"cancel_del_btn_{cid}", use_container_width=True):
+                            st.session_state.confirm_delete_id = None
+                            st.rerun()
+                else:
+                    # Render concept in a card layout
+                    pdf_badge = (
+                        f"<span class='pdf-badge attached'>📄 PDF Attached</span>"
+                        if cpdf else
+                        f"<span class='pdf-badge none'>❌ No PDF</span>"
+                    )
+                    
+                    card_html = (
+                        f"<div class='concept-card' style='margin-bottom:1.5rem;'>"
+                        f"  <div>"
+                        f"    <div style='display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;'>"
+                        f"      <h4 class='concept-card-title'>#{cid}: {ctitle}</h4>"
+                        f"      {pdf_badge}"
+                        f"    </div>"
+                        f"    <div class='concept-card-body'>"
+                        f"      {format_definition_text(ctext)}"
+                        f"    </div>"
+                        f"  </div>"
+                        f"</div>"
+                    )
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
+                    # Render action controls for this card
+                    btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
+                    with btn_col1:
+                        if st.button("✏️ Edit Concept", key=f"edit_btn_{cid}", use_container_width=True):
+                            st.session_state.editing_concept_id = cid
+                            st.rerun()
+                    with btn_col2:
+                        if st.button("🗑️ Delete", key=f"del_btn_{cid}", use_container_width=True):
+                            st.session_state.confirm_delete_id = cid
+                            st.rerun()
+                    with btn_col3:
+                        if cpdf:
+                            # Direct download button for PDF
+                            pdf_bytes = api_get_concept_pdf(cid)
+                            if pdf_bytes:
+                                st.download_button(
+                                    "⬇️ Download PDF",
+                                    data=pdf_bytes,
+                                    file_name=f"reference_concept_{cid}.pdf",
+                                    mime="application/pdf",
+                                    key=f"dl_pdf_btn_{cid}",
+                                    use_container_width=True
+                                )
+                            else:
+                                st.button("❌ PDF Offline", key=f"dl_offline_{cid}", disabled=True, use_container_width=True)
+                        else:
+                            st.button("🚫 No PDF", key=f"dl_none_{cid}", disabled=True, use_container_width=True)
+                            
+                    st.markdown("<hr style='border-color: rgba(255,255,255,0.04); margin:1.5rem 0;'>", unsafe_allow_html=True)
 
-    df = pd.DataFrame(results)
-    a1, a2, a3 = st.columns(3)
-    a1.metric("📊 Total Evaluations",  str(len(df)))
-    a2.metric("🎯 Platform Avg Score",  f"{df['overall_score'].mean():.1f}")
-    a3.metric("👥 Unique Students",     str(df["student_email"].nunique()))
-    st.markdown("<br>", unsafe_allow_html=True)
+    # ── TAB 2: Assessment History ──
+    with tab_history:
+        st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>👥 Student Results</h3>", unsafe_allow_html=True)
+        if st.button("🔄 Refresh History Log", key="admin_refresh_hist"): st.rerun()
 
-    for row in results:
-        student_label = f"👤 {row.get('student_name','?')} ({row.get('student_email','?')})"
-        _result_expander(row, prefix=student_label)
+        data = api_get("/admin/results")
+        if data is None:
+            st.error("Failed to retrieve result logs from backend.")
+        else:
+            results = data.get("results", [])
+            if not results:
+                st.info("No evaluation results yet.")
+            else:
+                df = pd.DataFrame(results)
+                a1, a2, a3 = st.columns(3)
+                a1.metric("📊 Total Evaluations",  str(len(df)))
+                a2.metric("🎯 Platform Avg Score",  f"{df['overall_score'].mean():.1f}")
+                a3.metric("👥 Unique Students",     str(df["student_email"].nunique()))
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                for row in results:
+                    _result_expander(row)
+
+    # ── TAB 3: Registered Users ──
+    with tab_users:
+        st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>👥 Registered Users</h3>", unsafe_allow_html=True)
+        if st.button("🔄 Refresh Registered Users", key="admin_refresh_users"): st.rerun()
+
+        userdata = api_get("/admin/users")
+        if userdata is None:
+            st.error("Failed to retrieve user list from backend.")
+        else:
+            users = userdata.get("users", [])
+            if not users:
+                st.info("No registered users found.")
+            else:
+                udf = pd.DataFrame(users)
+                u1, u2 = st.columns(2)
+                u1.metric("Total Users", str(len(udf)))
+                u2.metric("Admins", str(len(udf[udf['role'] == 'admin'])))
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # Render clean user profile cards grid instead of basic dataframe
+                users_html = "<div class='user-list'>"
+                for u in users:
+                    name = u.get("name", "Unknown")
+                    email = u.get("email", "No Email")
+                    role = u.get("role", "student")
+                    created_at = u.get("created_at", "N/A")
+                    
+                    # Compute initials
+                    initials = "".join([part[0] for part in name.split() if part])[:2].upper() or "?"
+                    
+                    role_class = "admin-badge" if role == "admin" else "student-badge"
+                    avatar_class = "admin" if role == "admin" else "student"
+                    
+                    users_html += (
+                        f"<div class='user-item-card'>"
+                        f"  <div class='user-avatar-circle {avatar_class}'>{initials}</div>"
+                        f"  <div class='user-detail-info'>"
+                        f"    <h4>{name}</h4>"
+                        f"    <p>{email}</p>"
+                        f"    <div class='user-card-date'>Joined: {created_at}</div>"
+                        f"  </div>"
+                        f"  <span class='user-card-badge {role_class}'>{role}</span>"
+                        f"</div>"
+                    )
+                users_html += "</div>"
+                st.markdown(users_html, unsafe_allow_html=True)
 
 # ── Main router ───────────────────────────────────────────────────────────────
 def main():

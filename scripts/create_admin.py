@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime
-from models import User, get_db
+from src.backend.db.models import User, get_db
 
 def hash_password(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
