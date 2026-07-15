@@ -764,7 +764,8 @@ def init_state():
                   "page": "login", "result": None, "waveform_png": None,
                   "pdf_bytes": None, "audio_bytes": None, "audio_filename": None, "last_concept_id": None,
                   "admin_concept_title": "", "admin_concept_text": "", "is_adding": False,
-                  "editing_concept_id": None, "confirm_delete_id": None}.items():
+                  "editing_concept_id": None, "confirm_delete_id": None,
+                  "temp_concept_title": "", "temp_concept_text": "", "uploader_id": 0}.items():
         if k not in st.session_state: st.session_state[k] = v
 
     # Restore saved session from disk (survives page reloads)
@@ -1239,12 +1240,28 @@ def page_admin():
 
     # ── TAB 1: Concept Management ──
     with tab_concepts:
+        # If adding, run the API call inside a loading spinner FIRST, before rendering widgets
+        if st.session_state.is_adding:
+            with st.spinner("Creating concept and extracting embeddings... Please wait."):
+                pdf_file = st.session_state.get(f"admin_concept_pdf_{st.session_state.uploader_id}")
+                res = api_post_concept(st.session_state.temp_concept_title.strip(), st.session_state.temp_concept_text.strip(), pdf_file)
+                if res:
+                    st.success(f"✅ Concept '{res['concept_title']}' added successfully (ID: {res['ref_concept_id']}).")
+                    st.session_state["temp_concept_title"] = ""
+                    st.session_state["temp_concept_text"] = ""
+                    st.session_state.uploader_id += 1  # Increment to clear file_uploader
+                    fetch_concepts.clear()
+                else:
+                    st.error("Failed to add concept. Please check backend connectivity.")
+                st.session_state.is_adding = False
+                st.rerun()
+
         st.markdown("<h3 style='color:#8B5CF6;font-size:1.1rem;font-weight:700;'>➕ Add New Concept</h3>", unsafe_allow_html=True)
         
-        # We bind the inputs to keys in session state so they persist and can be easily cleared
-        c_title = st.text_input("Concept Title", key="admin_concept_title", placeholder="e.g. Transformer Architecture", disabled=st.session_state.is_adding)
-        c_text  = st.text_area("Concept Definition", key="admin_concept_text", placeholder="Write the reference explanation here…", height=130, disabled=st.session_state.is_adding)
-        c_pdf = st.file_uploader("Upload Reference PDF (Optional)", type=["pdf"], key="admin_concept_pdf", disabled=st.session_state.is_adding)
+        # Read from temp_concept_title and temp_concept_text state variables as defaults
+        c_title = st.text_input("Concept Title", value=st.session_state.temp_concept_title, placeholder="e.g. Transformer Architecture", disabled=st.session_state.is_adding)
+        c_text  = st.text_area("Concept Definition", value=st.session_state.temp_concept_text, placeholder="Write the reference explanation here…", height=130, disabled=st.session_state.is_adding)
+        c_pdf = st.file_uploader("Upload Reference PDF (Optional)", type=["pdf"], key=f"admin_concept_pdf_{st.session_state.uploader_id}", disabled=st.session_state.is_adding)
         
         # The submit button is restricted (disabled) during addition
         sub = st.button("Add Concept →", disabled=st.session_state.is_adding, use_container_width=True)
@@ -1253,23 +1270,10 @@ def page_admin():
             if not c_title.strip() or not c_text.strip():
                 st.error("Both title and definition are required.")
             else:
+                # Save input values to temp state
+                st.session_state["temp_concept_title"] = c_title
+                st.session_state["temp_concept_text"] = c_text
                 st.session_state.is_adding = True
-                st.rerun()
-
-        # If adding, run the API call inside a loading spinner
-        if st.session_state.is_adding:
-            with st.spinner("Creating concept and extracting embeddings... Please wait."):
-                pdf_file = st.session_state.get("admin_concept_pdf")
-                res = api_post_concept(st.session_state.admin_concept_title.strip(), st.session_state.admin_concept_text.strip(), pdf_file)
-                if res:
-                    st.success(f"✅ Concept '{res['concept_title']}' added successfully (ID: {res['ref_concept_id']}).")
-                    st.session_state["admin_concept_title"] = ""
-                    st.session_state["admin_concept_text"] = ""
-                    st.session_state["admin_concept_pdf"] = None
-                    fetch_concepts.clear()
-                else:
-                    st.error("Failed to add concept. Please check backend connectivity.")
-                st.session_state.is_adding = False
                 st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)

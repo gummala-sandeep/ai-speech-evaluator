@@ -11,17 +11,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # ── Resolve the correct Python / venv ────────────────────────────────────
-VENV_DIR="$SCRIPT_DIR/venv311"
-
-if [ -f "$VENV_DIR/bin/activate" ]; then
-    # shellcheck disable=SC1090
-    source "$VENV_DIR/bin/activate"
-    echo "✓ Using Python: $(python --version) from $VENV_DIR"
+if [ -f "$SCRIPT_DIR/venv/bin/activate" ]; then
+    VENV_DIR="$SCRIPT_DIR/venv"
+elif [ -f "$SCRIPT_DIR/venv311/bin/activate" ]; then
+    VENV_DIR="$SCRIPT_DIR/venv311"
 else
-    echo "ERROR: venv311 not found at $VENV_DIR"
-    echo "Create it with: python3.11 -m venv venv311 && source venv311/bin/activate && pip install -r requirements.txt"
+    echo "ERROR: No virtual environment found at $SCRIPT_DIR/venv or $SCRIPT_DIR/venv311"
+    echo "Create it with: python3.11 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
     exit 1
 fi
+
+# shellcheck disable=SC1090
+source "$VENV_DIR/bin/activate"
+echo "✓ Using Python: $(python --version) from $VENV_DIR"
 
 # Load environment variables from .env if present
 if [ -f .env ]; then
