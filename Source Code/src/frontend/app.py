@@ -20,15 +20,27 @@ logger = logging.getLogger(__name__)
 
 @st.cache_resource
 def start_backend():
-    cmd = ["python", "-m", "uvicorn", "src.backend.api.main:app", "--host", "127.0.0.1", "--port", "8000"]
+    # Use the active Python executable running the app
+    cmd = [sys.executable, "-m", "uvicorn", "src.backend.api.main:app", "--host", "127.0.0.1", "--port", "8000"]
     try:
         env = os.environ.copy()
+        # Get the absolute path to "Source Code" directory
+        cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        env["PYTHONPATH"] = f"{cwd}:{env.get('PYTHONPATH', '')}"
+        
         try:
             if hasattr(st, "secrets") and "DATABASE_URL" in st.secrets:
                 env["DATABASE_URL"] = st.secrets["DATABASE_URL"]
         except Exception:
             pass
-        proc = subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+        proc = subprocess.Popen(
+            cmd,
+            env=env,
+            cwd=cwd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
         time.sleep(5)
         return proc
     except Exception as e:
