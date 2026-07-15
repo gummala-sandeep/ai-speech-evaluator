@@ -12,6 +12,36 @@ Developed to comply with rigorous academic submission standards, the repository 
 
 ---
 
+## 🔗 Deployed Application
+The application is live and can be accessed at:
+👉 **[SkillEcho Streamlit Platform](https://ai-speech-evaluator.streamlit.app/)**
+
+---
+
+## 📸 Application Screenshots
+
+### 1. Student Practice Area
+Students can select a reference concept, upload a WAV file containing their spoken explanation, and trigger the AI evaluation:
+![Student Practice Area](docs/images/practice_area.png)
+
+### 2. My Dashboard
+Shows the student's metrics (average score, best score, total sessions), historical progress, and expandable session reports with detailed feedback:
+![My Dashboard](docs/images/dashboard.png)
+
+### 3. Concept Management (Admin)
+Admins can manage the active repository of concepts and upload reference PDFs:
+![Concept Management](docs/images/admin_concept_management.png)
+
+### 4. Student Assessment History (Admin)
+Allows admins to track platform-wide student performance and view deep semantic and acoustic metrics:
+![Student Assessment History](docs/images/admin_student_history.png)
+
+### 5. Registered Users (Admin)
+Comprehensive overview of registered student and admin profiles:
+![Registered Users](docs/images/admin_registered_users.png)
+
+---
+
 ## 🌟 Key Features
 
 *   **Secure User Management:** Role-based access control (RBAC) separating **Students** (evaluations, history) and **Admins** (concept CRUD, all-user reports) using SHA-256 password security.
